@@ -35,23 +35,26 @@ export async function updateEventStatus(eventId, status) {
   return res.json();
 }
 
-export async function deleteEvent(eventId) {
+export async function deleteEvent(eventId, userRole = 'dpo') {
   const res = await fetch(`${API_BASE}/events/${eventId}`, {
     method: 'DELETE',
     headers: {
-      'x-user-role': 'dpo',
+      'x-user-role': userRole,
     },
   });
-  if (!res.ok) throw new Error('Failed to delete event under DPDP Right to Erasure');
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to delete event under DPDP Right to Erasure');
+  }
   return res.json();
 }
 
-export async function requestErasure(patientIdentifier, reason = 'DPDP Section 12 Right to Erasure', eventId = null) {
+export async function requestErasure(patientIdentifier, reason = 'DPDP Section 12 Right to Erasure', eventId = null, userRole = 'dpo') {
   const res = await fetch(`${API_BASE}/dpdp/erasure-request`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-role': 'dpo',
+      'x-user-role': userRole || 'dpo',
     },
     body: JSON.stringify({
       patient_identifier: patientIdentifier,
@@ -59,7 +62,10 @@ export async function requestErasure(patientIdentifier, reason = 'DPDP Section 1
       event_id: eventId,
     }),
   });
-  if (!res.ok) throw new Error('Failed to submit formal DPDP erasure request');
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || 'Failed to submit formal DPDP erasure request');
+  }
   return res.json();
 }
 

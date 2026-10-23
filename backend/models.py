@@ -94,14 +94,16 @@ class StatsResponse(BaseModel):
 
 
 class ErasureRequest(BaseModel):
-    identifier: str = Field(..., min_length=2, max_length=150)
+    patient_identifier: Optional[str] = None
+    identifier: Optional[str] = None
     reason: Optional[str] = "DPDP Act 2023 Section 12 Right to Erasure"
+    event_id: Optional[str] = None
     requester_role: Optional[str] = "dpo"
 
 
 class ErasureResponse(BaseModel):
-    status: str = "success"
-    deleted_count: int
-    erasure_hash: str
-    timestamp: datetime
-    message: str
+    status: str = "ERASED"
+    records_erased: int = 0
+    deletion_receipt_hash: str
+    timestamp: str
+    governing_law: str = "Digital Personal Data Protection Act, 2023 (Section 12 - Right to Correction and Erasure)"

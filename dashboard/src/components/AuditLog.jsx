@@ -41,7 +41,7 @@ function RiskPill({ score }) {
   );
 }
 
-export default function AuditLog({ events, onSelectEvent }) {
+export default function AuditLog({ events, currentRole = 'dpo', onSelectEvent }) {
   const [sortField, setSortField] = useState('timestamp');
   const [sortDir, setSortDir] = useState('desc');
   const [showAll, setShowAll] = useState(false);
@@ -409,18 +409,31 @@ export default function AuditLog({ events, onSelectEvent }) {
                   <td className="px-3 py-2.5 text-center" onClick={(ev) => ev.stopPropagation()}>
                     <button
                       onClick={async () => {
+                        if (currentRole === 'doctor') {
+                          alert('Access Denied (DPDP Act 2023 Sec 12): Duty Doctors are not authorized to delete sovereign audit records. Hospital DPO clearance required.');
+                          return;
+                        }
                         if (window.confirm(`DPDP Act 2023 (Section 12): Are you sure you want to permanently erase record ${e.event_id?.slice(0, 8)}?`)) {
                           try {
-                            await deleteEvent(e.event_id);
+                            await deleteEvent(e.event_id, currentRole);
                           } catch (err) {
                             alert('Erasure failed: ' + err.message);
                           }
                         }
                       }}
-                      title="Request Data Deletion (DPDP Act 2023 Sec 12)"
-                      className="p-1 rounded bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-mono transition"
+                      disabled={currentRole === 'doctor'}
+                      title={
+                        currentRole === 'doctor'
+                          ? 'Access Restricted: DPDP Section 12 erasure requires Hospital DPO role'
+                          : 'Request Data Deletion (DPDP Act 2023 Sec 12)'
+                      }
+                      className={`p-1 rounded text-xs font-mono transition ${
+                        currentRole === 'doctor'
+                          ? 'bg-slate-800/50 text-slate-600 border border-slate-700/40 cursor-not-allowed opacity-40'
+                          : 'bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30'
+                      }`}
                     >
-                      🗑️
+                      {currentRole === 'doctor' ? '🔒' : '🗑️'}
                     </button>
                   </td>
                 </tr>

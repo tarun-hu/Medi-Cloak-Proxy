@@ -144,9 +144,15 @@ def check_dpo_or_admin_clearance(
     x_user_role: str | None = Header(None),
 ):
     """Enforce authorization for administrative and destructive operations."""
+    if x_user_role and x_user_role.lower() not in ("dpo", "admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden (DPDP Act 2023 Sec 12): Duty Doctors are not permitted to delete immutable audit records. Hospital DPO or Admin credentials required."
+        )
+
     client_ip = request.client.host if request.client else ""
     is_localhost = client_ip in ("127.0.0.1", "localhost", "::1", "testclient")
-    if is_localhost or x_admin_key == ADMIN_KEY or x_user_role in ("dpo", "admin"):
+    if x_admin_key == ADMIN_KEY or (x_user_role and x_user_role.lower() in ("dpo", "admin")) or (is_localhost and not x_user_role):
         return True
     raise HTTPException(status_code=403, detail="Forbidden: Hospital DPO or Admin credentials required.")
 
@@ -321,7 +327,8 @@ async def submit_erasure_request(req: ErasureRequest):
     """
     erased_count = 0
     now_iso = datetime.now(timezone.utc).isoformat()
-    deletion_receipt_seed = f"{req.patient_identifier}|{req.reason}|{now_iso}"
+    target_id = req.patient_identifier or req.identifier or ""
+    deletion_receipt_seed = f"{target_id}|{req.reason}|{now_iso}"
     deletion_receipt_hash = hashlib.sha256(deletion_receipt_seed.encode("utf-8")).hexdigest()
 
     with get_cursor() as cur:
@@ -329,11 +336,11 @@ async def submit_erasure_request(req: ErasureRequest):
             cur.execute("DELETE FROM events WHERE event_id = %s RETURNING event_id", (req.event_id,))
             rows = cur.fetchall()
             erased_count = len(rows)
-        else:
+        elif target_id:
             # Delete any records referencing this patient identifier
             cur.execute(
                 "DELETE FROM events WHERE original_text ILIKE %s OR redacted_text ILIKE %s RETURNING event_id",
-                (f"%{req.patient_identifier}%", f"%{req.patient_identifier}%"),
+                (f"%{target_id}%", f"%{target_id}%"),
             )
             rows = cur.fetchall()
             erased_count = len(rows)

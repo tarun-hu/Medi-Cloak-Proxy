@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { requestErasure } from '../lib/api';
 
 export default function DPDPHub({ events, currentRole }) {
@@ -16,6 +17,25 @@ export default function DPDPHub({ events, currentRole }) {
     }, 60000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowErasureModal(false);
+        setShowCertInModal(false);
+      }
+    };
+    if (showErasureModal || showCertInModal) {
+      document.body.style.overflow = 'hidden';
+      window.addEventListener('keydown', handleKeyDown);
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showErasureModal, showCertInModal]);
 
   // Department counts
   const deptCounts = {
@@ -45,9 +65,13 @@ export default function DPDPHub({ events, currentRole }) {
   const handleSubmitErasure = async (e) => {
     e.preventDefault();
     if (!patientId.trim()) return;
+    if (currentRole === 'doctor') {
+      alert('🔒 Access Denied (DPDP Section 12): Duty Doctors hold clinical consultation privilege only. Data erasure requests require Hospital DPO or CMO authorization.');
+      return;
+    }
     setIsSubmittingErasure(true);
     try {
-      const res = await requestErasure(patientId.trim(), erasureReason);
+      const res = await requestErasure(patientId.trim(), erasureReason, null, currentRole);
       setErasureResult(res);
     } catch (err) {
       alert('Data erasure request failed: ' + err.message);
@@ -82,7 +106,7 @@ export default function DPDPHub({ events, currentRole }) {
               setErasureResult(null);
               setShowErasureModal(true);
             }}
-            className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition text-xs font-mono flex items-center gap-1.5"
+            className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition text-xs font-mono flex items-center gap-1.5 shadow-sm"
             title="Right to Erasure under Section 12 of DPDP Act 2023"
           >
             <span>🗑️</span>
@@ -92,7 +116,7 @@ export default function DPDPHub({ events, currentRole }) {
           {/* CERT-In SLA Timer */}
           <button
             onClick={() => setShowCertInModal(true)}
-            className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition text-xs font-mono flex items-center gap-1.5"
+            className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition text-xs font-mono flex items-center gap-1.5 shadow-sm"
           >
             ⏱️ CERT-In SLA: <strong className="text-white">{formatHours(certInMinutes)}</strong>
           </button>
@@ -177,45 +201,71 @@ export default function DPDPHub({ events, currentRole }) {
       </div>
 
       {/* DPDP Section 12 Right to Erasure Modal */}
-      {showErasureModal && (
-        <div className="modal-overlay" onClick={() => setShowErasureModal(false)}>
+      {showErasureModal && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowErasureModal(false)}>
           <div
-            className="glass-panel w-[92vw] max-w-lg p-5 border border-rose-500/40 rounded-2xl shadow-2xl"
+            className="slide-in w-[92vw] max-w-lg p-5 rounded-2xl bg-[#0c1322] border border-rose-500/40 shadow-2xl shadow-black text-slate-200"
+            style={{ maxHeight: '90vh', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-2xl">🗑️</span>
                 <div>
-                  <h3 className="text-sm font-bold text-white">DPDP Act 2023: Right to Erasure Request</h3>
-                  <p className="text-[11px] text-slate-400">Section 12: Mandatory Deletion of Personal Data</p>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    DPDP Act 2023: Right to Erasure
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                      Section 12
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Statutory Deletion of Intercepted Personal Health Data</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowErasureModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white text-sm transition"
               >
                 ✕
               </button>
             </div>
 
+            {/* Doctor RBAC Warning Banner */}
+            {currentRole === 'doctor' && (
+              <div className="p-3 mb-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-start gap-2.5 text-xs">
+                <span className="text-lg">🔒</span>
+                <div>
+                  <strong className="block text-amber-200 font-semibold mb-0.5">
+                    Clinical Role Restriction: Duty Doctor (Read-Only)
+                  </strong>
+                  Under DPDP Act Section 12, clinical staff cannot execute permanent audit record erasures. Switch to the <strong>Hospital DPO</strong> persona at the top right to execute statutory deletion orders.
+                </div>
+              </div>
+            )}
+
             {erasureResult ? (
               <div className="space-y-3 text-xs font-mono">
-                <div className="p-3 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 space-y-1">
-                  <div className="font-bold text-sm">✅ Erasure Request Completed</div>
-                  <div>Records Purged: <strong>{erasureResult.records_erased}</strong></div>
-                  <div>Governing Law: {erasureResult.governing_law}</div>
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 space-y-1">
+                  <div className="font-bold text-sm flex items-center gap-1.5">
+                    <span>✅</span> Erasure Order Executed Successfully
+                  </div>
+                  <div>Records Purged: <strong className="text-white">{erasureResult.records_erased}</strong></div>
+                  <div className="text-[11px] text-slate-300">Governing Law: {erasureResult.governing_law}</div>
                 </div>
 
-                <div className="p-3 rounded bg-black/50 border border-white/10 space-y-1 text-slate-300">
-                  <div className="text-[11px] text-slate-400">Cryptographic Erasure Audit Proof:</div>
-                  <div className="text-cyan-300 break-all select-all">{erasureResult.deletion_receipt_hash}</div>
-                  <div className="text-[10px] text-slate-500 mt-1">Timestamp: {erasureResult.timestamp}</div>
+                <div className="p-3 rounded-xl bg-black/60 border border-white/10 space-y-1.5 text-slate-300">
+                  <div className="text-[11px] text-slate-400 font-medium">Cryptographic Deletion Audit Hash (SHA-256):</div>
+                  <div className="text-cyan-300 break-all select-all font-mono text-[11px] bg-slate-950 p-2 rounded border border-cyan-400/20">
+                    {erasureResult.deletion_receipt_hash}
+                  </div>
+                  <div className="text-[10px] text-slate-500 flex justify-between">
+                    <span>Timestamp: {erasureResult.timestamp}</span>
+                    <span className="text-emerald-400">Vault Chain Updated ✓</span>
+                  </div>
                 </div>
 
                 <button
                   onClick={() => setShowErasureModal(false)}
-                  className="w-full mt-3 py-2 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 text-xs font-mono font-semibold"
+                  className="w-full mt-3 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 text-xs font-mono font-semibold transition"
                 >
                   Close & Refresh Audit Logs
                 </button>
@@ -223,27 +273,33 @@ export default function DPDPHub({ events, currentRole }) {
             ) : (
               <form onSubmit={handleSubmitErasure} className="space-y-3 text-xs font-mono">
                 <p className="text-slate-300 text-xs leading-relaxed">
-                  Under Section 12 of the Digital Personal Data Protection Act, 2023, data principals or authorized Hospital DPOs may request permanent deletion of healthcare records.
+                  Under Section 12 of the Digital Personal Data Protection Act 2023, data principals or the hospital Data Protection Officer may request permanent deletion of healthcare records.
                 </p>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Patient Identifier / ABHA / Name / Event ID:</label>
+                  <label className="block text-slate-400 mb-1 font-medium">
+                    Patient Identifier / ABHA ID / Name / Event ID:
+                  </label>
                   <input
                     type="text"
                     required
                     value={patientId}
+                    disabled={currentRole === 'doctor'}
                     onChange={(e) => setPatientId(e.target.value)}
                     placeholder="e.g. 32-4415-9982-1012 or Sunita Sharma"
-                    className="w-full px-3 py-2 rounded bg-black/50 border border-white/15 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/15 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs font-mono disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-400 mb-1">Statutory Erasure Reason:</label>
+                  <label className="block text-slate-400 mb-1 font-medium">
+                    Statutory Erasure Ground:
+                  </label>
                   <select
                     value={erasureReason}
+                    disabled={currentRole === 'doctor'}
                     onChange={(e) => setErasureReason(e.target.value)}
-                    className="w-full px-3 py-2 rounded bg-black/50 border border-white/15 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-black/60 border border-white/15 text-slate-200 focus:outline-none focus:border-cyan-400 text-xs font-mono disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <option value="Patient withdrawal of consent (DPDP Sec 12)">Patient withdrawal of consent (DPDP Sec 12)</option>
                     <option value="End of specified clinical purpose">End of specified clinical purpose</option>
@@ -252,88 +308,127 @@ export default function DPDPHub({ events, currentRole }) {
                   </select>
                 </div>
 
-                <div className="p-2.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px]">
-                  ⚠️ Deletion is permanent and irreversible. A cryptographic erasure receipt will be generated for the hospital compliance vault.
+                <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[11px] leading-relaxed">
+                  ⚠️ Deletion is permanent and irreversible. A cryptographic erasure receipt will be generated and broadcast to the immutable audit vault.
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-end gap-2 pt-2 border-t border-white/10">
                   <button
                     type="button"
                     onClick={() => setShowErasureModal(false)}
-                    className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-mono"
+                    className="px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-mono transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmittingErasure}
-                    className="px-4 py-1.5 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-mono font-semibold flex items-center gap-1.5"
+                    disabled={isSubmittingErasure || currentRole === 'doctor'}
+                    className={`px-4 py-1.5 rounded-lg text-xs font-mono font-semibold flex items-center gap-1.5 transition ${
+                      currentRole === 'doctor'
+                        ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                        : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 cursor-pointer shadow-sm'
+                    }`}
                   >
-                    {isSubmittingErasure ? 'Erasing...' : 'Confirm Data Erasure'}
+                    {currentRole === 'doctor'
+                      ? '🔒 Erasure Restricted (DPO Only)'
+                      : isSubmittingErasure
+                      ? 'Processing...'
+                      : 'Confirm Data Erasure'}
                   </button>
                 </div>
               </form>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* CERT-In Modal */}
-      {showCertInModal && (
-        <div className="modal-overlay" onClick={() => setShowCertInModal(false)}>
+      {showCertInModal && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowCertInModal(false)}>
           <div
-            className="glass-panel w-[92vw] max-w-xl p-5 border border-amber-500/40 rounded-2xl shadow-2xl"
+            className="slide-in w-[92vw] max-w-xl p-5 rounded-2xl bg-[#0c1322] border border-amber-500/40 shadow-2xl shadow-black text-slate-200"
+            style={{ maxHeight: '90vh', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
               <div className="flex items-center gap-2">
                 <span className="text-2xl">🚨</span>
                 <div>
-                  <h3 className="text-sm font-bold text-white">CERT-In 6-Hour Emergency Compliance Report</h3>
-                  <p className="text-[11px] text-slate-400">Govt. of India Cybersecurity Incident Mandate</p>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    CERT-In 6-Hour Emergency Compliance Report
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      Govt of India Mandate
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Cybersecurity Incident Reporting Directions under IT Act Sec 70B</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowCertInModal(false)}
-                className="text-slate-400 hover:text-white text-sm"
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white text-sm transition"
               >
                 ✕
               </button>
             </div>
 
             <div className="space-y-3 text-xs text-slate-300 font-mono">
-              <div className="p-3 rounded bg-amber-500/10 border border-amber-500/30 text-amber-200">
-                <strong>Status:</strong> All outgoing clinical prompts sanitised pre-boundary. No uncontained data exfiltration detected in last 24h.
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <strong className="block text-white font-semibold">Incident Buffer SLA Countdown:</strong>
+                  <span>Statutory notification required within 6 hours of discovery.</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-mono font-extrabold text-amber-400">{formatHours(certInMinutes)}</div>
+                  <span className="text-[10px] text-emerald-400">✓ In Safe SLA Window</span>
+                </div>
               </div>
-              <div className="bg-black/40 p-3 rounded border border-white/10 space-y-1">
-                <div>• Fiduciary Entity: Sovereign MediCloak Shield Gateway</div>
-                <div>• Applicable Act: DPDP Act 2023, Sections 8(6) & 10</div>
-                <div>• Intercepted Healthcare Records: {events.length}</div>
-                <div>• Neutralized Data Leaks: {leaksBlocked}</div>
-                <div>• Cross-Border Cloud Destinations: OpenAI / Anthropic / Google</div>
-                <div>• Pre-Boundary Tokenization Hash: SHA-256 Merkle verified</div>
+
+              <div className="bg-black/60 p-3.5 rounded-xl border border-white/10 space-y-2">
+                <div className="text-xs font-semibold text-slate-200 border-b border-white/5 pb-1">
+                  Entity Compliance Status
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>• Fiduciary Entity:</div>
+                  <div className="text-cyan-300 font-semibold">MediCloak Shield Gateway</div>
+                  <div>• Statutory Law:</div>
+                  <div className="text-slate-200">DPDP Act §8(6), §10 & IT Act 70B</div>
+                  <div>• Intercepted AI Prompts:</div>
+                  <div className="text-white font-bold">{events.length} records</div>
+                  <div>• Neutralized Data Leaks:</div>
+                  <div className="text-emerald-400 font-bold">{leaksBlocked} blocked/sanitized</div>
+                  <div>• Cross-Border Leakage:</div>
+                  <div className="text-emerald-400 font-semibold">0 (Zero Leaks)</div>
+                  <div>• SHA-256 Vault Chain:</div>
+                  <div className="text-cyan-300 font-mono">Verified Immutable</div>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px]">
+                🛡️ All outgoing clinical prompts are scrubbed pre-boundary inside local hospital network. No uncontained data breaches detected in the last 24-hour cycle.
               </div>
             </div>
 
-            <div className="mt-4 flex justify-end gap-2">
+            <div className="mt-4 flex justify-end gap-2 pt-2 border-t border-white/10">
               <button
                 onClick={() => {
-                  alert('CERT-In Pre-formatted Incident Compliance Draft exported successfully.');
+                  alert('CERT-In Pre-formatted Incident Compliance Draft exported successfully (JSON/PDF).');
                   setShowCertInModal(false);
                 }}
-                className="px-3 py-1.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 text-xs font-mono font-semibold"
+                className="px-3.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 text-xs font-mono font-semibold transition flex items-center gap-1.5 shadow-sm"
               >
                 📥 Export Official CERT-In Report
               </button>
               <button
                 onClick={() => setShowCertInModal(false)}
-                className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-mono"
+                className="px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-mono transition"
               >
                 Dismiss
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

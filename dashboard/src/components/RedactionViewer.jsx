@@ -132,7 +132,7 @@ function highlightRedacted(text) {
   return <>{parts.length > 0 ? parts : <span>{text}</span>}</>;
 }
 
-export default function RedactionViewer({ event, onClose }) {
+export default function RedactionViewer({ event, currentRole = 'dpo', onClose }) {
   const [copiedType, setCopiedType] = useState(null);
 
   if (!event) return null;
@@ -312,19 +312,33 @@ export default function RedactionViewer({ event, onClose }) {
             </button>
             <button
               onClick={async () => {
+                if (currentRole === 'doctor') {
+                  alert('Access Denied (DPDP Act 2023 Sec 12): Duty Doctors are not authorized to delete sovereign audit records. Hospital DPO clearance required.');
+                  return;
+                }
                 if (window.confirm(`DPDP Act 2023 (Section 12): Permanently erase security event ${event.event_id?.slice(0, 8)} and purge all audit payload records?`)) {
                   try {
-                    await deleteEvent(event.event_id);
+                    await deleteEvent(event.event_id, currentRole);
                     onClose();
                   } catch (err) {
                     alert('Erasure failed: ' + err.message);
                   }
                 }
               }}
-              title="DPDP Act 2023 Sec 12 Right to Erasure"
-              className="px-2.5 py-1 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition text-xs flex items-center gap-1 font-semibold"
+              disabled={currentRole === 'doctor'}
+              title={
+                currentRole === 'doctor'
+                  ? 'Access Restricted: DPDP Section 12 erasure requires Hospital DPO role'
+                  : 'DPDP Act 2023 Sec 12 Right to Erasure'
+              }
+              className={`px-2.5 py-1 rounded border text-xs flex items-center gap-1 font-semibold transition ${
+                currentRole === 'doctor'
+                  ? 'bg-slate-800/50 text-slate-500 border-slate-700/50 cursor-not-allowed opacity-40'
+                  : 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30'
+              }`}
             >
-              <span>🗑️</span> Erase Record
+              <span>{currentRole === 'doctor' ? '🔒' : '🗑️'}</span>
+              <span>{currentRole === 'doctor' ? 'Erasure Restricted' : 'Erase Record'}</span>
             </button>
           </div>
         </div>
@@ -367,36 +381,65 @@ export default function RedactionViewer({ event, onClose }) {
         ) : (
           /* Rehydration View */
           <div className="flex-1 p-6 overflow-y-auto bg-slate-950 flex flex-col items-center">
-            <div className="w-full max-w-2xl bg-slate-900 border border-sg-cyan/30 rounded-xl p-5 space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
-                  🔑 Session In-Memory Rehydration Map
-                </h3>
-                <p className="text-xs text-gray-400">
-                  External cloud AI sees only anonymous tokens. Doctor terminal dynamically rehydrates values locally:
-                </p>
-              </div>
-
-              <div className="space-y-2 font-mono text-xs">
-                {Object.entries(rehydrationMap).map(([token, realVal]) => (
-                  <div
-                    key={token}
-                    className="flex items-center justify-between p-3 rounded bg-black/60 border border-white/5"
-                  >
-                    <span className="text-sg-cyan font-bold">{token}</span>
-                    <span className="text-gray-500">── Maps To ──▶</span>
-                    <span className="text-white font-semibold">{realVal}</span>
-                  </div>
-                ))}
-              </div>
-
-              {event.sha256_hash && (
-                <div className="p-3 rounded bg-black/40 border border-white/5 text-[11px] font-mono text-gray-400">
-                  <span className="text-sg-cyan font-bold">Cryptographic Vault Proof: </span>
-                  <span className="select-all text-gray-300">{event.sha256_hash}</span>
+            {currentRole === 'doctor' ? (
+              <div className="w-full max-w-xl bg-slate-900/90 border border-rose-500/40 rounded-2xl p-6 text-center space-y-3 shadow-2xl">
+                <div className="w-12 h-12 mx-auto rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-2xl">
+                  🔒
                 </div>
-              )}
-            </div>
+                <h3 className="text-sm font-bold text-rose-300 uppercase tracking-wider font-mono">
+                  ACCESS RESTRICTED: DPDP ACT 2023 SECTION 9 (TIER-3 CLEARANCE)
+                </h3>
+                <p className="text-xs text-slate-300 leading-relaxed font-sans max-w-md mx-auto">
+                  Duty Doctors and Clinical AI Interns are permitted only to inspect pseudonymized diagnostic tokens (e.g. <code className="text-cyan-300 font-mono">[PATIENT_1]</code>, <code className="text-emerald-300 font-mono">[LOCATION_1]</code>).
+                </p>
+                <div className="p-3 bg-black/60 rounded-xl border border-white/5 text-[11px] font-mono text-slate-400 text-left space-y-1">
+                  <div className="text-amber-300 font-semibold">🛡️ Statutory Security Directive:</div>
+                  <div>• Rehydration requires Chief Medical Officer (CMO) or DPO Authorization.</div>
+                  <div>• Switch to <strong>🏥 Chief Medical Officer</strong> persona in header to review audit map.</div>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full max-w-2xl bg-slate-900 border border-sg-cyan/30 rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                      🔑 Session In-Memory Rehydration Map
+                    </h3>
+                    <p className="text-xs text-gray-400">
+                      External cloud AI sees only anonymous tokens. Doctor terminal dynamically rehydrates values locally:
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+                    ✓ {currentRole === 'cmo' ? 'CMO Clearance Active' : 'DPO Clearance Active'}
+                  </span>
+                </div>
+
+                <div className="space-y-2 font-mono text-xs">
+                  {Object.entries(rehydrationMap).map(([token, realVal]) => (
+                    <div
+                      key={token}
+                      className="flex items-center justify-between p-3 rounded bg-black/60 border border-white/5"
+                    >
+                      <span className="text-sg-cyan font-bold">{token}</span>
+                      <span className="text-gray-500">── Maps To ──▶</span>
+                      <span className="text-white font-semibold">{realVal}</span>
+                    </div>
+                  ))}
+                  {Object.keys(rehydrationMap).length === 0 && (
+                    <div className="text-center py-4 text-xs font-mono text-gray-500">
+                      No pseudonymized tokens in this payload
+                    </div>
+                  )}
+                </div>
+
+                {event.sha256_hash && (
+                  <div className="p-3 rounded bg-black/40 border border-white/5 text-[11px] font-mono text-gray-400">
+                    <span className="text-sg-cyan font-bold">Cryptographic Vault Proof: </span>
+                    <span className="select-all text-gray-300">{event.sha256_hash}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -187,10 +187,8 @@ export default function App() {
         onOpenDemoSandbox={() => setShowDemoSandbox(true)}
       />
 
-      {/* DPDP Act 2023 Sovereign Hub (Shown for DPO & CMO) */}
-      {currentRole !== 'doctor' && (
-        <DPDPHub events={events} currentRole={currentRole} />
-      )}
+      {/* DPDP Act 2023 Sovereign Hub */}
+      <DPDPHub events={events} currentRole={currentRole} />
 
       <StatsCards stats={phiStats} callStats={callStats} />
 
@@ -218,12 +216,13 @@ export default function App() {
       </div>
 
       {/* Bottom: Audit Log */}
-      <AuditLog events={events} onSelectEvent={setSelectedEvent} />
+      <AuditLog events={events} currentRole={currentRole} onSelectEvent={setSelectedEvent} />
 
       {/* Modal: Redaction Viewer */}
       {selectedEvent && (
         <RedactionViewer
           event={selectedEvent}
+          currentRole={currentRole}
           onClose={() => setSelectedEvent(null)}
         />
       )}
