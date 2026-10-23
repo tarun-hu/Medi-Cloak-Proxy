@@ -200,10 +200,10 @@ CITY_STATE_PATTERN = r"(?:" + "|".join(re.escape(c) for c in sorted(INDIAN_CITIE
 
 # Locality markers (Sector, Phase, Pocket, Gali, Mohalla, Nagar, Enclave, etc.)
 LOCALITY_MARKERS = (
-    r"(?:Sector|Sec\.?|Phase|Pocket|Pkt\.?|Block|Blk\.?|Plot\s*(?:No\.?)?|Flat\s*(?:No\.?)?|"
-    r"House\s*(?:No\.?)?|H\.No\.?|HNO\.?|Gali\s*(?:No\.?)?|Street|Mohalla|Pind|Gaon|Village|Vill\.?|"
-    r"Colony|Tehsil|Taluka|District|Dist\.?|Enclave|Vihar|Kunj|Marg|Nagar|Chowk|Bazaar|Road|Rd\.?|"
-    r"DLF|Cyber City|Civil Lines|Model Town|Huda|IDC|Society|Apartments|Apts\.?|Tower|Floor|Lane|Ward|Basti)"
+    r"(?:Sector|Sec\.|Sec(?=\s*[-#]?\d)|Phase|Pocket|Pkt\.|Block|Blk\.|Plot\s*(?:No\.?)?|Flat\s*(?:No\.?)?|"
+    r"House\s*(?:No\.?)?|H\.No\.?|HNO\.?|Gali\s*(?:No\.?)?|Street|Mohalla|Pind|Gaon|Village|Vill\.|"
+    r"Colony|Tehsil|Taluka|District|Dist\.|Enclave|Vihar|Kunj|Marg|Nagar|Chowk|Bazaar|Road|Rd\.|"
+    r"DLF|Cyber City|Civil Lines|Model Town|Huda|Society|Apartments|Apts\.|Tower|Floor|Lane|Ward|Basti)"
 )
 
 LOCALITY_CORE = rf"\b{LOCALITY_MARKERS}\s*[-#]?[A-Za-z0-9]+"
@@ -226,8 +226,8 @@ NAME_CONTEXT_PATTERNS = [
     # 2. Indian Honorifics (Shri, Smt, Kumari, Sardar, Master, Baby, Md., Dr., Mr., Mrs., Ms.)
     r"(?i:\b(?:shri|sh\.|smt\.|smt|kumari|km\.|sardar|master|baby(?:\s+of)?|b/o|md\.|mohd\.|dr\.|dr|mr\.|mr|mrs\.|mrs|ms\.|ms)[\s:#]+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b",
 
-    # 3. Relational Kinship (S/o, D/o, W/o, H/o, C/o, Son of, Wife of, Attendant, Brought by)
-    r"(?i:\b(?:s/o|d/o|w/o|h/o|c/o|son\s+of|daughter\s+of|wife\s+of|husband\s+of|attendant[\s:]+|brought\s+by[\s:]+|father|mother|spouse)[\s:#]+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b",
+    # 3. Relational Kinship (S/o, D/o, W/o, H/o, C/o, Son of, Wife of, Attendant, Brought by, Relative)
+    r"(?i:\b(?:s/o|d/o|w/o|h/o|c/o|son\s+of|daughter\s+of|wife\s+of|husband\s+of|attendant[\s:]+|brought\s+by[\s:]+|relative(?:\s+of)?|father|mother|spouse|brother|sister)[\s:#]+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b",
 
     # 4. Age/Sex Header: "Dalla Ram, 45M" or "Dalla Ram (52/M)" or "Dalla Ram, 45 yrs male"
     r"(?i:\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*(?:[\(,\/]\s*\d{1,2}\s*(?:yr|years?|yo|y/o|m/o|male|female|[mf]|\/\s*[mf])\s*[\)]?))",
@@ -268,6 +268,24 @@ def regex_redact(text: str) -> dict:
     Pass 3: Restore clinical terms with 100% diagnostic fidelity.
     """
     if not text or not text.strip():
+        return {
+            "redacted_text": text,
+            "findings": [],
+            "phi_detected": False,
+            "phi_count": 0,
+            "entity_types_found": [],
+            "engine": "sovereign_core",
+            "rehydration_map": {},
+            "department": "OPD / General Medicine",
+            "clinical_terms_preserved": [],
+        }
+
+    raw_s = text.strip()
+    # Guard against non-clinical blobs: base64/Fernet tokens, JWTs, timezones, single-word hashes
+    if (
+        raw_s.startswith(("gAAAAA", "eyJh", "Asia/", "Europe/", "America/", "Africa/", "Pacific/"))
+        or (" " not in raw_s and len(raw_s) > 25)
+    ):
         return {
             "redacted_text": text,
             "findings": [],
@@ -415,8 +433,8 @@ def regex_redact(text: str) -> dict:
 
     # 6. Structured Locality + City / State Addresses ("Sector 45, Madras", "DLF Cyber City, Gurgaon")
     compound_addr_pattern = (
-        rf"{LOCALITY_CORE}(?:[\s,]+(?:[A-Za-z0-9\s\-]+,?\s*)*{CITY_STATE_PATTERN})?"
-        rf"(?:[\s,]+{PINCODE_REGEX})?"
+        rf"{LOCALITY_CORE}(?:[,\s]+{CITY_STATE_PATTERN})?"
+        rf"(?:[,\s]+{PINCODE_REGEX})?"
     )
     for m in re.finditer(compound_addr_pattern, redacted, re.IGNORECASE):
         val = m.group(0).strip()
@@ -439,9 +457,14 @@ def regex_redact(text: str) -> dict:
             })
             redacted = redacted.replace(val, token)
 
-    # 7. Standalone Cities & States (when not part of a shielded clinical term)
+    # 7. Standalone Cities & States (when not part of a shielded clinical term, timezone, or URL)
     for m in re.finditer(rf"\b{CITY_STATE_PATTERN}\b", redacted, re.IGNORECASE):
         val = m.group(0).strip()
+        # Avoid matching cities in paths, URLs, emails, or timezones (e.g. Asia/Calcutta)
+        if m.start() > 0 and redacted[m.start() - 1] in ('/', '\\', '@', '_', '-'):
+            continue
+        if m.end() < len(redacted) and redacted[m.end()] in ('/', '\\'):
+            continue
         if (
             val
             and not val.startswith("__MED_GUARD_")

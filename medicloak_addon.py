@@ -127,7 +127,7 @@ AI_DOMAINS = {
 }
 
 # Domains / paths to ignore (static assets, telemetry, internal metrics, auth, etc.)
-IGNORE_PATHS = {
+IGNORE_PATHS = (
     "/v1/models",
     "/favicon.ico",
     "/_next/",
@@ -139,16 +139,58 @@ IGNORE_PATHS = {
     "/jserror",
     "/client-telemetry",
     "/lat/r",
+    "/lat/",
     "/rgstr",
     "/logging",
     "/log",
     "/gen_204",
     "/api/auth/",
     "/backend-api/lat/r",
+    "/backend-api/lat/",
     "/backend-api/me",
     "/backend-api/settings",
     "/backend-api/accounts",
-}
+    "/sentinel",
+    "/chat-requirements",
+    "/conversation/prepare",
+    "/prepare",
+    "/unauth-mweb/sentinel",
+    "/unauth-mweb/conversation/prepare",
+    "/backend-anon/sentinel",
+    "/ces/",
+    "/ces/v1/t",
+    "/ces/v1/",
+    "/statsig",
+    "/telemetry",
+    "/analytics",
+    "/metrics",
+    "/beacon",
+    "/event",
+    "/events",
+    "/browser/",
+    "/initialize",
+    "/session",
+    "/feedback",
+    "/track",
+    "/collect",
+)
+
+TELEMETRY_MARKERS = (
+    "statsig::",
+    "conversation_stream.update_response_count",
+    "conversation_startup.",
+    "conversation.perf.",
+    "conversation_perf.",
+    "client_type\": \"web-mobile\"",
+    "client_type\":\"web-mobile\"",
+    "\"eventname\": \"statsig",
+    "\"eventname\":\"statsig",
+    "\"metric\":",
+    "\"counters\":",
+    "\"layer_exposure\"",
+    "\"auth_login_signup_opt_layer\"",
+    "secondaryexposures",
+)
 
 STATIC_EXTENSIONS = (
     ".js", ".css", ".svg", ".png", ".jpg", ".jpeg", ".gif",
@@ -550,6 +592,14 @@ class MediCloak:
                 pass
 
         # 6. Plain Text / Raw Prompt
+        raw_s = raw_body.strip()
+        if (
+            raw_s.startswith(("gAAAAA", "eyJh", "Asia/", "Europe/", "America/"))
+            or (" " not in raw_s and len(raw_s) > 25)
+            or len(raw_s) < 5
+        ):
+            return raw_body, False, None, ""
+
         phi_res = self.redactor.analyze_and_redact(raw_body)
         if phi_res.get("phi_detected"):
             return phi_res["redacted_text"], True, phi_res, raw_body
@@ -582,6 +632,13 @@ class MediCloak:
         if any(ignore in path for ignore in IGNORE_PATHS):
             return
 
+        # Explicit filter for ChatGPT internal telemetry & handshake endpoints
+        if matched_service == "ChatGPT":
+            if not any(cp in path for cp in ("/conversation", "/v1/chat/completions")):
+                return
+            if any(bad in path for bad in ("/prepare", "/sentinel", "/chat-requirements", "/models", "/settings", "/accounts")):
+                return
+
         try:
             flow.request.decode()
         except Exception:
@@ -591,16 +648,27 @@ class MediCloak:
         if not raw_body.strip() or len(raw_body.strip()) < 5:
             return
 
-        # Deduplication check (2 seconds window)
-        now = time.time()
-        self._recent_events = {k: v for k, v in self._recent_events.items() if (now - v) < 8.0}
-        prompt_snippet = raw_body.strip()[:100]
-        cache_key = f"{matched_service}:{prompt_snippet}"
-        if cache_key in self._recent_events and (now - self._recent_events[cache_key]) < 2.0:
+        # Ignore background client & browser telemetry payloads
+        raw_lower = raw_body.lower()
+        if any(marker in raw_lower for marker in TELEMETRY_MARKERS):
             return
-        self._recent_events[cache_key] = now
 
         sanitized_body, modified, phi_result, user_snippet = self.sanitize_payload(raw_body)
+
+        # Deduplication check (3.0 seconds window per prompt snippet) - Ensures 1 single event on Dashboard
+        now = time.time()
+        self._recent_events = {k: v for k, v in self._recent_events.items() if (now - v) < 8.0}
+        prompt_snippet = (user_snippet or raw_body).strip()[:100]
+        cache_key = f"{matched_service}:{prompt_snippet}"
+        if cache_key in self._recent_events and (now - self._recent_events[cache_key]) < 3.0:
+            if modified and phi_result and phi_result.get("phi_detected"):
+                flow.request.set_text(sanitized_body)
+                if flow.request.raw_content:
+                    flow.request.headers["Content-Length"] = str(len(flow.request.raw_content))
+                flow.request.headers.pop("Content-Encoding", None)
+                flow.request.headers["X-MediCloak"] = "redacted"
+            return
+        self._recent_events[cache_key] = now
 
         risk = score_risk(user_snippet or raw_body, matched_service, flow.request.method)
 

@@ -1,6 +1,11 @@
 __pycache__/
 .venv/
+backend/venv/
 .claude/
 backend/__pycache__/
 dashboard/node_modules/
+dashboard/.next/
 .env
+backend/.env
+scratch/
+*.log
