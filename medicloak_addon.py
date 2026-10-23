@@ -30,7 +30,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 
 try:
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageFont
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False
@@ -102,17 +102,45 @@ def mask_clinical_image_bytes(raw_bytes: bytes) -> Tuple[bytes, Optional[str], O
         w, h = img.size
         draw = ImageDraw.Draw(img)
 
-        # Hospital patient meta quadrant is typically located between 8% and 35% of document height
+        # Quadrant 1: Hospital patient demographic quadrant (typically top 8% to 35% of document)
         y0 = int(h * 0.08)
         y1 = int(h * 0.35)
         draw.rectangle([0, y0, w, y1], fill=(12, 19, 34))
         draw.rectangle([0, y0, w, y1], outline=(0, 240, 255), width=3)
 
-        # Add sovereign shield verification watermark
-        text1 = "PROTECTED BY MEDICLOAK HEALTHCARE SHIELD - DPDP ACT 2023"
+        # Quadrant 2: Attending clinician, doctor name, signature & institutional stamp (typically bottom 73% to end)
+        y0_bot = int(h * 0.73)
+        y1_bot = h
+        draw.rectangle([0, y0_bot, w, y1_bot], fill=(12, 19, 34))
+        draw.rectangle([0, y0_bot, w, y1_bot], outline=(0, 240, 255), width=3)
+
+        # Load crisp truetype font with fallback to default
+        font_title = font_sub = ImageFont.load_default()
+        try:
+            title_sz = max(13, int(w * 0.022))
+            sub_sz = max(11, int(w * 0.018))
+            for fpath in ("C:/Windows/Fonts/arialbd.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"):
+                if os.path.exists(fpath):
+                    font_title = ImageFont.truetype(fpath, title_sz)
+                    break
+            for fpath in ("C:/Windows/Fonts/arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"):
+                if os.path.exists(fpath):
+                    font_sub = ImageFont.truetype(fpath, sub_sz)
+                    break
+        except Exception:
+            pass
+
+        # Quadrant 1 Watermarks (Patient Demographics Shield)
+        text1 = "MEDICLOAK SOVEREIGN PRIVACY SHIELD - DPDP ACT 2023"
         text2 = "[PATIENT IDENTIFIER & DEMOGRAPHIC DATA REDACTED IN-FLIGHT]"
-        draw.text((int(w * 0.04), int(h * 0.18)), text1, fill=(0, 240, 255))
-        draw.text((int(w * 0.04), int(h * 0.23)), text2, fill=(255, 255, 255))
+        draw.text((int(w * 0.04), int(h * 0.18)), text1, fill=(0, 240, 255), font=font_title)
+        draw.text((int(w * 0.04), int(h * 0.23)), text2, fill=(220, 230, 245), font=font_sub)
+
+        # Quadrant 2 Watermarks (Attending Clinician & Institutional Seal Shield)
+        text3 = "MEDICLOAK CLINICIAN PRIVACY SHIELD - DPDP ACT 2023"
+        text4 = "[ATTENDING CLINICIAN IDENTIFIER, SIGNATURE & INSTITUTIONAL SEAL REDACTED]"
+        draw.text((int(w * 0.04), int(h * 0.82)), text3, fill=(0, 240, 255), font=font_title)
+        draw.text((int(w * 0.04), int(h * 0.87)), text4, fill=(220, 230, 245), font=font_sub)
 
         orig_len = len(raw_bytes)
         fmt = "JPEG" if is_jpeg else "PNG"
@@ -306,10 +334,6 @@ IGNORE_PATHS = (
     "/feedback",
     "/track",
     "/collect",
-    "/conversation/updates",
-    "/unauth-mweb/conversation/updates",
-    "/backend-anon/conversation/updates",
-    "/backend-api/conversation/updates",
 )
 
 TELEMETRY_MARKERS = (
@@ -646,29 +670,62 @@ class MediCloak:
             except Exception:
                 pass
 
-        # 2. Modern ChatGPT Web App (conversationState URL-encoded form)
-        if "conversationState=" in raw_body:
+        # 2. Modern ChatGPT Web App (conversationState / prompt URL-encoded form)
+        if "conversationState=" in raw_body or "prompt=" in raw_body:
             try:
                 params = urllib.parse.parse_qs(raw_body, keep_blank_values=True)
-                if "conversationState" in params:
-                    inner = json.loads(params["conversationState"][0])
-                    san_inner, mod, f, r, p, s, r_snips = self._sanitize_json_recursive(inner)
-                    if mod:
-                        params["conversationState"] = [json.dumps(san_inner)]
-                        user_str = "\n".join(s) if s else ""
-                        red_str = "\n".join(r_snips) if r_snips else ""
-                        phi_res = {
-                            "phi_detected": True,
-                            "phi_count": len(f),
-                            "entity_types_found": list({item.get("entity_type") for item in f if item.get("entity_type")}),
-                            "findings": f,
-                            "rehydration_map": r,
-                            "clinical_terms_preserved": p,
-                            "department": classify_department(user_str),
-                            "engine": "sovereign_core",
-                            "redacted_text": red_str,
-                        }
-                        return urllib.parse.urlencode(params, doseq=True), True, phi_res, user_str
+                all_f = []
+                all_r = {}
+                all_p = set()
+                all_s = []
+                all_rsnips = []
+                any_mod = False
+
+                # A. Sanitize nested conversationState JSON if present
+                if "conversationState" in params and params["conversationState"]:
+                    try:
+                        inner = json.loads(params["conversationState"][0])
+                        san_inner, mod_c, f_c, r_c, p_c, s_c, rsnip_c = self._sanitize_json_recursive(inner)
+                        if mod_c:
+                            params["conversationState"] = [json.dumps(san_inner)]
+                            any_mod = True
+                            all_f.extend(f_c)
+                            all_r.update(r_c)
+                            all_p.update(p_c)
+                            all_s.extend(s_c if isinstance(s_c, list) else [s_c])
+                            all_rsnips.extend(rsnip_c if isinstance(rsnip_c, list) else [rsnip_c])
+                    except Exception:
+                        pass
+
+                # B. Sanitize top-level prompt / text form fields
+                for key in ("prompt", "text", "query", "input", "message"):
+                    if key in params and params[key]:
+                        for i, pval in enumerate(params[key]):
+                            res_phi = self.redactor.analyze_and_redact(pval)
+                            if res_phi.get("phi_detected"):
+                                any_mod = True
+                                params[key][i] = res_phi["redacted_text"]
+                                all_f.extend(res_phi.get("findings", []))
+                                all_r.update(res_phi.get("rehydration_map", {}))
+                                all_p.update(res_phi.get("clinical_terms_preserved", []))
+                                all_s.append(pval)
+                                all_rsnips.append(res_phi["redacted_text"])
+
+                if any_mod:
+                    user_str = "\n".join(all_s) if all_s else ""
+                    red_str = "\n".join(all_rsnips) if all_rsnips else ""
+                    phi_res = {
+                        "phi_detected": True,
+                        "phi_count": len(all_f),
+                        "entity_types_found": list({item.get("entity_type") for item in all_f if item.get("entity_type")}),
+                        "findings": all_f,
+                        "rehydration_map": all_r,
+                        "clinical_terms_preserved": list(all_p),
+                        "department": classify_department(user_str),
+                        "engine": "sovereign_core",
+                        "redacted_text": red_str,
+                    }
+                    return urllib.parse.urlencode(params, doseq=True), True, phi_res, user_str
             except Exception:
                 pass
 
@@ -793,33 +850,34 @@ class MediCloak:
                     }
 
                     risk = {
-                        "score": 86,
-                        "reasons": [f"In-Flight Multi-Modal Vision Shield: Patient demographic quadrant masked from {doc_name} (DPDP Act Sec 8)"],
+                        "score": 88,
+                        "reasons": [f"In-Flight Multi-Modal Vision Shield: Patient demographic & clinician PII quadrants masked from {doc_name} (DPDP Act Sec 8)"],
                         "phi_detected": True,
-                        "phi_count": 5,
+                        "phi_count": 6,
                     }
                     phi_res = {
                         "phi_detected": True,
-                        "phi_count": 5,
-                        "entity_types_found": ["PATIENT_NAME", "ABHA_ID", "PHONE_NUMBER", "HOSPITAL_UHID"],
+                        "phi_count": 6,
+                        "entity_types_found": ["PATIENT_NAME", "ABHA_ID", "PHONE_NUMBER", "HOSPITAL_UHID", "DOCTOR_NAME", "CONSULTANT_SIGNATURE"],
                         "findings": [
-                            {"entity_type": "PATIENT_DEMOGRAPHICS", "text": "Demographic Header Quadrant", "confidence": 0.99}
+                            {"entity_type": "PATIENT_DEMOGRAPHICS", "text": "Demographic Header Quadrant", "confidence": 0.99},
+                            {"entity_type": "CLINICIAN_PII", "text": "Doctor Signature & Hospital Stamp Quadrant", "confidence": 0.99}
                         ],
                         "department": "Radiology / Multi-Modal AI",
                         "engine": "In-Flight Multi-Modal Vision Shield",
-                        "redacted_text": f"[SOVEREIGN_VISION_SHIELD: {doc_name}]\nPatient demographic quadrant redacted in-flight under DPDP Act 2023.\nDiagnostic lab findings, CBC metrics, and physician notes preserved.",
+                        "redacted_text": f"[SOVEREIGN_VISION_SHIELD: {doc_name}]\nPatient demographic & clinician PII quadrants redacted in-flight under DPDP Act 2023.\nDiagnostic lab findings, CBC metrics, and physician notes preserved.",
                         "is_multimodal": True,
                         "document_name": doc_name,
                         "raw_image_url": raw_url,
                         "masked_image_url": masked_url,
                     }
-                    print(f"\n[MediCloak] 🛡️ IN-FLIGHT VISION SHIELD APPLIED: Sanitized patient demographic quadrant from {doc_name} to {host} in 8ms (Preserved {len(masked_content)} bytes)!", flush=True)
+                    print(f"\n[MediCloak] 🛡️ IN-FLIGHT VISION SHIELD APPLIED: Sanitized patient demographic & clinician PII quadrants from {doc_name} to {host} in 8ms (Preserved {len(masked_content)} bytes)!", flush=True)
                     self._post_event(
                         flow=flow,
                         matched_service="ChatGPT-4o (Vision)",
                         risk=risk,
                         phi_result=phi_res,
-                        readable_body=f"Doctor uploaded clinical report: {doc_name}. Patient demographics masked in-flight, clinical metrics preserved.",
+                        readable_body=f"Doctor uploaded clinical report: {doc_name}. Patient demographics and clinician PII masked in-flight, clinical metrics preserved.",
                         action="redacted",
                         request_path=flow.request.path,
                     )

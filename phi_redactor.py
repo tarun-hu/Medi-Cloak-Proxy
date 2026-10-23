@@ -269,9 +269,9 @@ NAME_EXCLUSIONS = {
 
 REGEX_PATTERNS = {
     "US_SSN": r"\b\d{3}-\d{2}-\d{4}\b",
-    "MEDICAL_RECORD_NUMBER": r"\b(?:MRN|medical\s*record(?:\s*number)?)\s*[:#]*\s*\d{4,12}\b",
+    "MEDICAL_RECORD_NUMBER": r"(?i:\b(?:MRN|CR\s*No\.?|CR|UHID|OPD\s*No\.?|IPD\s*No\.?|medical\s*record(?:\s*number)?)\s*[:#]*\s*[A-Za-z0-9-]{4,24}\b)",
     "DATE_OF_BIRTH": r"\b(?:DOB|date\s*of\s*birth|born)[\s:]*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b",
-    "PHONE_NUMBER": r"\b(?:\+?\d{1,3}[-.\s])?\(?\d{3}\)[-.\s]\d{3}[-.\s]\d{4}\b|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b",
+    "PHONE_NUMBER": r"\b(?:\+?\d{1,3}[-.\s])?\(?\d{3}\)[-.\s]\d{3}[-.\s]\d{4}\b|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b|\b[6-9]\d{9}\b",
     "EMAIL_ADDRESS": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
 }
 

@@ -37,6 +37,10 @@ const PHI_TYPE_COLORS = {
   ADDRESS: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
   CONDITION: 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40',
   MEDICATION: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+  CLINICIAN_PII: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+  DOCTOR_NAME: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+  CONSULTANT_SIGNATURE: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+  HOSPITAL_STAMP: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
 };
 
 function highlightPHI(text, findings) {

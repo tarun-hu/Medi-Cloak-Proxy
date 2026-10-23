@@ -552,6 +552,8 @@ TEMPLATES_METADATA = {
             {"entity": "PHONE_NUMBER", "val": "+91 98201 44102", "token": "[REDACTED_PHONE_NUMBER]", "x": 64, "y": 14, "w": 30, "h": 6},
             {"entity": "BARCODE", "val": "*APL-992144-X*", "token": "[REDACTED_BARCODE]", "x": 70, "y": 5, "w": 25, "h": 8},
             {"entity": "DOCTOR_NAME", "val": "Dr. A. K. Banerjee", "token": "[REDACTED_DOCTOR_NAME]", "x": 64, "y": 22, "w": 32, "h": 6},
+            {"entity": "CLINICIAN_PII", "val": "Dr. Smita Rao (MD, Pathology) & Consultant Seal", "token": "[REDACTED_CLINICIAN_PII]", "x": 60, "y": 80, "w": 35, "h": 15},
+            {"entity": "HOSPITAL_STAMP", "val": "Apollo Clinical Diagnostics Seal", "token": "[REDACTED_INSTITUTIONAL_STAMP]", "x": 40, "y": 80, "w": 20, "h": 15},
         ],
         "clinical_findings": [
             "Platelet Count: 85,000 /mcL (Thrombocytopenia)",
@@ -569,6 +571,8 @@ TEMPLATES_METADATA = {
             {"entity": "AADHAAR_ID", "val": "XXXX-XXXX-8921", "token": "[REDACTED_AADHAAR_TOKEN]", "x": 64, "y": 14, "w": 28, "h": 6},
             {"entity": "PHONE_NUMBER", "val": "+91 94112 09844", "token": "[REDACTED_PHONE_NUMBER]", "x": 64, "y": 22, "w": 28, "h": 6},
             {"entity": "BARCODE", "val": "*AIIMS-PULM-9021*", "token": "[REDACTED_BARCODE]", "x": 70, "y": 5, "w": 25, "h": 8},
+            {"entity": "CLINICIAN_PII", "val": "Dr. B. Kumar (Radiologist) Signature", "token": "[REDACTED_CLINICIAN_PII]", "x": 60, "y": 80, "w": 35, "h": 15},
+            {"entity": "HOSPITAL_STAMP", "val": "AIIMS Institutional Seal", "token": "[REDACTED_INSTITUTIONAL_STAMP]", "x": 40, "y": 80, "w": 20, "h": 15},
         ],
         "clinical_findings": [
             "Bilateral Lower Lobe Infiltrates (Pneumonic Consolidation)",
@@ -585,6 +589,8 @@ TEMPLATES_METADATA = {
             {"entity": "MRN_ID", "val": "ER-2026-0941", "token": "[REDACTED_MRN]", "x": 18, "y": 22, "w": 28, "h": 6},
             {"entity": "ROOM_NO", "val": "ICU Bed 12-B", "token": "[REDACTED_LOCATION]", "x": 64, "y": 14, "w": 26, "h": 6},
             {"entity": "DOCTOR_NAME", "val": "Dr. Rohit Singhania", "token": "[REDACTED_DOCTOR_NAME]", "x": 64, "y": 22, "w": 32, "h": 6},
+            {"entity": "CLINICIAN_PII", "val": "Attending ER Physician Signature", "token": "[REDACTED_CLINICIAN_PII]", "x": 60, "y": 80, "w": 35, "h": 15},
+            {"entity": "HOSPITAL_STAMP", "val": "Fortis ER Critical Care Seal", "token": "[REDACTED_INSTITUTIONAL_STAMP]", "x": 40, "y": 80, "w": 20, "h": 15},
         ],
         "clinical_findings": [
             "Inj Piperacillin-Tazobactam 4.5g IV Q8H",
