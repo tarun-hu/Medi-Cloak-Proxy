@@ -122,6 +122,13 @@ INDIAN_CLINICAL_WHITELIST = [
     # Hospital Units & Operational Directives
     "Emergency Room", "Casualty", "Triage", "OPD", "IPD", "ICU", "MICU", "SICU", "CCU",
     "NICU", "PICU", "HDU", "OT", "Crash Cart", "Post-Op", "Pre-Op",
+
+    # Hinglish & Regional Clinical Directives & Symptoms (Preserved 100%)
+    "Pet me dard", "Pet dard", "Chakkar aana", "Chakkar", "Tez bukhar", "Bukhar",
+    "Ulti aana", "Ultiyan", "Ulti", "Patle dast", "Dast", "Seene me dard", "Chhati me dard",
+    "Saans phoolna", "Saans lene me takleef", "Khoon ki ulti", "Peeliya", "Piliya",
+    "Sookhi khaansi", "Khaansi", "Ghabrahat", "Behoshi", "Kamzori", "Pairo me sujan", "Sujan",
+    "Dawa di", "Dawa li thi",
 ]
 
 # Sort by length descending so multi-word idioms match before sub-words
@@ -131,7 +138,11 @@ INDIAN_CLINICAL_WHITELIST.sort(key=lambda s: len(s), reverse=True)
 def classify_department(text: str) -> str:
     """Classify hospital department based on clinical context keywords using word boundaries."""
     text_lower = text.lower()
-    er_patterns = [r"\ber\b", r"\bemergency\b", r"\bcasualty\b", r"\btrauma\b", r"\btriage\b", r"\bacute\b", r"\bcpr\b", r"\bresuscitation\b", r"\bdelhi belly\b", r"\bmadras eye\b"]
+    er_patterns = [
+        r"\ber\b", r"\bemergency\b", r"\bcasualty\b", r"\btrauma\b", r"\btriage\b", r"\bacute\b",
+        r"\bcpr\b", r"\bresuscitation\b", r"\bdelhi belly\b", r"\bmadras eye\b",
+        r"\bpet me dard\b", r"\bseene me dard\b", r"\bchhati me dard\b", r"\bkhoon\b", r"\bbehoshi\b", r"\bsaans phoolna\b"
+    ]
     if any(re.search(pat, text_lower) for pat in er_patterns):
         return "Emergency Room (ER)"
     onc_patterns = [r"\boncology\b", r"\bcancer\b", r"\btumor\b", r"\btumour\b", r"\bchemotherapy\b", r"\bradiation\b", r"\bbiopsy\b", r"\bmalignant\b", r"\bcarcinoma\b"]
@@ -234,6 +245,15 @@ NAME_CONTEXT_PATTERNS = [
 
     # 5. Sentence initial Indian names followed by clinical verbs (was admitted, came to, visited, consulted, has, presented with)
     r"(?i:\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s+(?:was\s+admitted|came\s+to|visited|consulted|presented\s+with|is\s+a|complaining\s+of|undergoing|referred\s+to|has\s+(?:a|an)?))\b",
+
+    # 6. Hinglish Relational & Attendant (unke relative Rajesh Kumar, patient ke bhai Amit Verma, unke pita Ramesh Chand)
+    r"\b(?i:(?:(?:unke|patient\s+ke|in-?ke)\s+)?(?:relative|attendant|bhai|behan|beta|beti|bahu|damad|pitaji|pita|mataji|mata|maa|papa|mummy|patni|pati|dost|chacha|mama|parivaar)[\s:]+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b",
+
+    # 7. Hinglish Agentive Postposition Verbs (Rajesh Kumar bol rahe the, Suresh Singh ne bataya, Deepak Sharma leke aaye)
+    r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*(?i:(?:ji|sahab|babu)?\s+(?:bol\s+rahe\s+the|ne\s+bataya|keh\s+rahe\s+the|bata\s+rahe\s+the|ko\s+check\s+kiya|ke\s+saath\s+aaye|ko\s+lekar\s+aaye|ne\s+admit\s+karwaya|ne\s+dawa\s+di|ko\s+laya\s+gaya|ko\s+dikhaane\s+aaye))\b",
+
+    # 8. Hinglish Patient Header (patient ka naam Rajesh Kumar hai, mareez Ram Lal ko admit kiya)
+    r"\b(?i:(?:patient|mareez|pt\.?)\s*(?:ka\s+naam|ki\s+history)?[\s:#]+)([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b",
 ]
 
 
@@ -430,6 +450,34 @@ def regex_redact(text: str) -> dict:
                 "score": 0.96,
             })
             redacted = redacted.replace(addr, token)
+
+    # 5.1 Hinglish Spatial & Movement Origin ("Gurgaon se aate waqt", "Faridabad ke rehne wale", "Noida se laya gaya")
+    hinglish_loc_pattern = (
+        r"\b([A-Z][a-z0-9]+(?:\s+[A-Z0-9][a-z0-9]+)*)\s+"
+        r"(?i:se\s+aate\s+waqt|se\s+aaye\s+hain|se\s+laya\s+gaya|ke\s+rehne\s+wale|me\s+rehte\s+hain|me\s+rehta\s+hai|ka\s+resident|se\s+refer\s+kiya|se\s+aaye)\b"
+    )
+    for m in re.finditer(hinglish_loc_pattern, redacted):
+        loc_candidate = m.group(1).strip()
+        loc_candidate = re.sub(r"^(?:ki|aur|toh|tab|phir|unke|in-?ke)\s+", "", loc_candidate, flags=re.I).strip()
+        if (
+            loc_candidate
+            and not loc_candidate.startswith("__MED_GUARD_")
+            and not any(loc_candidate in f["text"] for f in findings)
+            and len(loc_candidate) >= 3
+            and loc_candidate.lower() not in {"subah", "kal", "raat", "dopahar", "sham", "ghar", "gaadi", "hospital", "ward", "opd", "emergency", "clinic", "stretcher", "ambulance", "auto", "train", "bus", "road", "rasta"}
+        ):
+            token = f"[LOCATION_{counters['LOCATION']}]"
+            counters["LOCATION"] += 1
+            rehydration_map[token] = loc_candidate
+            findings.append({
+                "entity_type": "LOCATION",
+                "text": loc_candidate,
+                "token": token,
+                "start": m.start(1),
+                "end": m.end(1),
+                "score": 0.95,
+            })
+            redacted = redacted.replace(loc_candidate, token)
 
     # 6. Structured Locality + City / State Addresses ("Sector 45, Madras", "DLF Cyber City, Gurgaon")
     compound_addr_pattern = (
