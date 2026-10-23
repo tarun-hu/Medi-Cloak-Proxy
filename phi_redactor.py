@@ -198,11 +198,11 @@ INDIAN_CITIES = [
 ]
 
 INDIAN_STATES = [
-    "Haryana", "Punjab", "Uttar Pradesh", "UP", "Rajasthan", "Bihar", "Delhi",
-    "Uttarakhand", "Himachal Pradesh", "HP", "Madhya Pradesh", "MP", "Maharashtra",
-    "Tamil Nadu", "TN", "Karnataka", "Kerala", "Telangana", "Andhra Pradesh", "AP",
-    "West Bengal", "WB", "Odisha", "Orissa", "Gujarat", "Assam", "Jharkhand",
-    "Chhattisgarh", "Jammu and Kashmir", "J&K", "Goa", "Tripura", "Manipur",
+    "Haryana", "Punjab", "Uttar Pradesh", "Rajasthan", "Bihar", "Delhi",
+    "Uttarakhand", "Himachal Pradesh", "Madhya Pradesh", "Maharashtra",
+    "Tamil Nadu", "Karnataka", "Kerala", "Telangana", "Andhra Pradesh",
+    "West Bengal", "Odisha", "Orissa", "Gujarat", "Assam", "Jharkhand",
+    "Chhattisgarh", "Jammu and Kashmir", "Goa", "Tripura", "Manipur",
     "Meghalaya", "Nagaland", "Mizoram", "Sikkim", "Arunachal Pradesh",
     "Chandigarh", "Puducherry", "Ladakh"
 ]

@@ -9,6 +9,7 @@ import AuditLog from './components/AuditLog';
 import RedactionViewer from './components/RedactionViewer';
 import DPDPHub from './components/DPDPHub';
 import LiveDemoSandbox from './components/LiveDemoSandbox';
+import VisionShield from './components/VisionShield';
 import { useWebSocket } from './hooks/useWebSocket';
 import { fetchStats, fetchEvents, fetchCalls, fetchCallStats } from './lib/api';
 
@@ -33,6 +34,7 @@ export default function App() {
   const [callStats, setCallStats] = useState({ total_calls: 0, completed_calls: 0, failed_calls: 0 });
   const [currentRole, setCurrentRole] = useState('dpo'); // 'doctor' | 'cmo' | 'dpo'
   const [showDemoSandbox, setShowDemoSandbox] = useState(false);
+  const [showVisionShield, setShowVisionShield] = useState(false);
   const newEventTimeouts = useRef(new Map());
 
   // Load initial data
@@ -144,7 +146,13 @@ export default function App() {
       setEvents((prev) => prev.filter((e) => e.event_id !== event_id));
     }
 
-    if (msg.type === 'erasure_completed' || msg.type === 'database_cleared') {
+    if (msg.type === 'database_cleared') {
+      setEvents([]);
+      fetchStats().then((s) => setStats(s)).catch(() => {});
+      fetchCallStats().then((cs) => setCallStats(cs)).catch(() => {});
+    }
+
+    if (msg.type === 'erasure_completed') {
       // Re-fetch events from server to ensure perfect sync
       fetchEvents({ limit: 200 })
         .then((fresh) => setEvents(fresh))
@@ -185,6 +193,7 @@ export default function App() {
         currentRole={currentRole}
         onRoleChange={setCurrentRole}
         onOpenDemoSandbox={() => setShowDemoSandbox(true)}
+        onOpenVisionShield={() => setShowVisionShield(true)}
       />
 
       {/* DPDP Act 2023 Sovereign Hub */}
@@ -230,6 +239,11 @@ export default function App() {
       {/* Modal: Live Demo Sandbox (Judges Comparative View) */}
       {showDemoSandbox && (
         <LiveDemoSandbox onClose={() => setShowDemoSandbox(false)} />
+      )}
+
+      {/* Modal: Live Proxy Traffic Interception Mirror (CCTV / SOC Stream) */}
+      {showVisionShield && (
+        <VisionShield events={events} onClose={() => setShowVisionShield(false)} />
       )}
     </div>
   );

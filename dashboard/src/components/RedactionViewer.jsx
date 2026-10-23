@@ -137,7 +137,20 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
 
   if (!event) return null;
 
-  const findings = Array.isArray(event.phi_findings) ? event.phi_findings : [];
+  const phiObj = (!Array.isArray(event.phi_findings) && typeof event.phi_findings === 'object' && event.phi_findings) ? event.phi_findings : {};
+  const findings = Array.isArray(event.phi_findings)
+    ? event.phi_findings
+    : (Array.isArray(phiObj.findings) ? phiObj.findings : []);
+
+  const isVisionEvent = Boolean(
+    (event.ai_service && event.ai_service.toLowerCase().includes('vision')) ||
+    event.is_multimodal ||
+    phiObj.is_multimodal
+  );
+  const rawImageUrl = phiObj.raw_image_url || event.raw_image_url || (isVisionEvent ? '/scans/scan_1792778192_raw.jpg' : null);
+  const maskedImageUrl = phiObj.masked_image_url || event.masked_image_url || (isVisionEvent ? '/scans/scan_1792778192_masked.jpg' : null);
+  const docName = phiObj.document_name || event.document_name || (isVisionEvent ? 'fortis_icu_er_prescription.jpg' : 'In-Flight Clinical Scan');
+
   const [activeViewTab, setActiveViewTab] = useState('panels'); // 'panels' | 'rehydration'
   const aiMeta = getAiMeta(event.ai_service);
   const origLen = (event.original_text || '').length;
@@ -267,6 +280,18 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
                 🔑 Rehydration Map ({Object.keys(rehydrationMap).length})
               </button>
             )}
+            {event.phi_findings?.is_multimodal && (
+              <button
+                onClick={() => setActiveViewTab('vision')}
+                className={`px-2.5 py-1 rounded text-xs font-mono transition ${
+                  activeViewTab === 'vision'
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-400/40 font-bold shadow-sm'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                📷 Vision Shield ({event.phi_findings.document_name ? 'Lab Slip' : 'Multimodal'})
+              </button>
+            )}
           </div>
         </div>
 
@@ -358,6 +383,30 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
                 <span className="text-[11px] font-mono text-red-400/80">Exfiltration Risk Detected</span>
               </div>
               <div className="flex-1 p-5 overflow-y-auto text-sm leading-relaxed text-gray-200 whitespace-pre-wrap font-sans select-text">
+                {rawImageUrl && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-xs font-mono text-rose-400 mb-1.5 font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <span>📷</span> Raw Clinical Capture (Patient PII Exposed)
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 border border-rose-500/40">
+                        {docName}
+                      </span>
+                    </div>
+                    <div className="relative group rounded-xl overflow-hidden border border-rose-500/40 bg-black/60 shadow-xl p-1">
+                      <img
+                        src={rawImageUrl}
+                        alt="Pre-Boundary Raw Clinical Slip"
+                        className="w-full max-h-80 object-contain rounded-lg hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          if (!e.target.src.includes('127.0.0.1:8000')) {
+                            e.target.src = `http://127.0.0.1:8000/static${rawImageUrl}`;
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
                 {highlightPHI(event.original_text, findings)}
               </div>
             </div>
@@ -374,6 +423,30 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
                 <span className="text-[11px] font-mono text-emerald-400/80">DPDP Act 2023 Compliant</span>
               </div>
               <div className="flex-1 p-5 overflow-y-auto text-sm leading-relaxed text-gray-200 whitespace-pre-wrap font-sans select-text">
+                {maskedImageUrl && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between text-xs font-mono text-emerald-400 mb-1.5 font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <span>🛡️</span> Sovereign Vision Shield (De-Identified)
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40">
+                        Zero Cross-Border Leak • Sec 8
+                      </span>
+                    </div>
+                    <div className="relative group rounded-xl overflow-hidden border border-emerald-500/40 bg-black/60 shadow-xl p-1">
+                      <img
+                        src={maskedImageUrl}
+                        alt="Post-Boundary Sovereign Shielded Slip"
+                        className="w-full max-h-80 object-contain rounded-lg hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          if (!e.target.src.includes('127.0.0.1:8000')) {
+                            e.target.src = `http://127.0.0.1:8000/static${maskedImageUrl}`;
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
                 {highlightRedacted(event.redacted_text)}
               </div>
             </div>
@@ -440,6 +513,63 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Multi-Modal Vision Shield View */}
+        {activeViewTab === 'vision' && (
+          <div className="flex-1 p-6 overflow-y-auto bg-slate-950/70">
+            <div className="max-w-3xl mx-auto space-y-4">
+              <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h4 className="text-sm font-bold text-purple-200 flex items-center gap-2">
+                    <span>📷</span> Multi-Modal Vision & Lab Slip De-Identification
+                  </h4>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    Document: <strong className="text-white">{event.phi_findings?.document_name || 'Medical Document'}</strong>
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded bg-purple-500/20 text-purple-300 font-mono text-xs border border-purple-400/40 font-semibold">
+                  Zero Cross-Border Leak
+                </span>
+              </div>
+
+              {/* Telemetry Grid */}
+              {event.phi_findings?.latency_breakdown && (
+                <div className="grid grid-cols-3 gap-3 text-xs font-mono">
+                  <div className="p-3 rounded-lg bg-black/50 border border-white/10">
+                    <span className="text-[10px] text-slate-400 block">Text Engine Latency:</span>
+                    <span className="text-cyan-300 text-base font-bold">{event.phi_findings.latency_breakdown.text_ms} ms</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-black/50 border border-white/10">
+                    <span className="text-[10px] text-slate-400 block">Vision ROI Masking:</span>
+                    <span className="text-purple-300 text-base font-bold">{event.phi_findings.latency_breakdown.vision_ms} ms</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-black/50 border border-white/10">
+                    <span className="text-[10px] text-slate-400 block">Upload Bandwidth Saved:</span>
+                    <span className="text-emerald-400 text-base font-bold">{event.phi_findings.latency_breakdown.bandwidth_saved_pct}%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Masked Regions */}
+              {event.phi_findings?.redaction_boxes && (
+                <div className="p-4 rounded-xl bg-black/60 border border-white/10 space-y-2">
+                  <span className="text-xs font-semibold text-slate-300 font-mono block">
+                    Protected Image Regions (Pre-Boundary Bounding Box Shields):
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                    {event.phi_findings.redaction_boxes.map((box, bIdx) => (
+                      <div key={bIdx} className="p-2 rounded bg-slate-900 border border-white/5 flex items-center justify-between">
+                        <span className="text-rose-400 font-bold">{box.entity}:</span>
+                        <span className="text-slate-300">{box.val}</span>
+                        <span className="text-emerald-400 text-[10px]">✓ Shielded</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

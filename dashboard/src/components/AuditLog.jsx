@@ -371,10 +371,15 @@ export default function AuditLog({ events, currentRole = 'dpo', onSelectEvent })
                     {e.source_ip}
                   </td>
                   <td className="px-3 py-2.5 text-xs text-white">
-                    <span className="inline-flex items-center gap-1.5 font-medium">
+                    <div className="flex items-center gap-1.5 font-medium flex-wrap">
                       <span>{icon}</span>
                       <span>{e.ai_service}</span>
-                    </span>
+                      {((e.ai_service || '').includes('Vision') || e.phi_findings?.is_multimodal) && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/40 font-semibold">
+                          📷 Multi-Modal
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5">
                     <RiskPill score={e.risk_score || 0} />

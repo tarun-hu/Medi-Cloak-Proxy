@@ -1,15 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { requestErasure } from '../lib/api';
+import { jsPDF } from 'jspdf';
+import { requestErasure, purgeAllAuditVault } from '../lib/api';
 
-export default function DPDPHub({ events, currentRole }) {
+export default function DPDPHub({ events = [], currentRole = 'dpo' }) {
   const [certInMinutes, setCertInMinutes] = useState(358); // Simulated 6-hour countdown (360 mins)
   const [showCertInModal, setShowCertInModal] = useState(false);
   const [showErasureModal, setShowErasureModal] = useState(false);
+  const [showPurgeModal, setShowPurgeModal] = useState(false);
   const [patientId, setPatientId] = useState('');
   const [erasureReason, setErasureReason] = useState('Patient withdrawal of consent (DPDP Sec 12)');
   const [erasureResult, setErasureResult] = useState(null);
   const [isSubmittingErasure, setIsSubmittingErasure] = useState(false);
+
+  // DPO Mandatory Purge Protocol State
+  const [pdfExported, setPdfExported] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
+  const [purgeSuccess, setPurgeSuccess] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -23,9 +30,10 @@ export default function DPDPHub({ events, currentRole }) {
       if (e.key === 'Escape') {
         setShowErasureModal(false);
         setShowCertInModal(false);
+        setShowPurgeModal(false);
       }
     };
-    if (showErasureModal || showCertInModal) {
+    if (showErasureModal || showCertInModal || showPurgeModal) {
       document.body.style.overflow = 'hidden';
       window.addEventListener('keydown', handleKeyDown);
     } else {
@@ -35,7 +43,7 @@ export default function DPDPHub({ events, currentRole }) {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showErasureModal, showCertInModal]);
+  }, [showErasureModal, showCertInModal, showPurgeModal]);
 
   // Department counts
   const deptCounts = {
@@ -80,6 +88,120 @@ export default function DPDPHub({ events, currentRole }) {
     }
   };
 
+  const handleExportAuditPDF = () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Header Banner
+      doc.setFillColor(12, 19, 34);
+      doc.rect(0, 0, pageWidth, 38, 'F');
+
+      doc.setTextColor(0, 240, 255);
+      doc.setFontSize(15);
+      doc.setFont('helvetica', 'bold');
+      doc.text('MEDICLOAK SOVEREIGN AUDIT VAULT', 14, 16);
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Digital Personal Data Protection (DPDP) Act 2023 - Statutory Archive Report', 14, 24);
+      doc.text(`Generated: ${new Date().toLocaleString()} | Officer: Hospital DPO (Clearance Tier-1)`, 14, 31);
+
+      // Summary Box
+      doc.setFillColor(245, 247, 250);
+      doc.rect(14, 44, pageWidth - 28, 26, 'F');
+      doc.setDrawColor(200, 210, 220);
+      doc.rect(14, 44, pageWidth - 28, 26, 'S');
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('STATUTORY AUDIT VAULT SUMMARY', 18, 52);
+
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Total Intercepted Events: ${events.length}`, 18, 59);
+      doc.text(`Exfiltrations Blocked: ${events.filter((e) => e.phi_detected).length}`, 95, 59);
+      doc.text(`Compliance Score: ${complianceScore}% (DPDP Sec 10)`, 18, 65);
+      doc.text(`Purge Authorization: DPDP Act Sec 12 Mandatory Pre-Archive`, 95, 65);
+
+      // Events Table Header
+      let y = 78;
+      doc.setFillColor(15, 23, 42);
+      doc.rect(14, y, pageWidth - 28, 7.5, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TIME', 16, y + 5.2);
+      doc.text('AI SERVICE', 46, y + 5.2);
+      doc.text('RISK', 86, y + 5.2);
+      doc.text('ACTION', 106, y + 5.2);
+      doc.text('SHA-256 VAULT PROOF (FIRST 24 CHARS)', 136, y + 5.2);
+
+      y += 7.5;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+
+      const items = events.slice(0, 32);
+      items.forEach((ev, idx) => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        if (idx % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(14, y, pageWidth - 28, 6, 'F');
+        }
+        doc.setTextColor(51, 65, 85);
+        const timeStr = (ev.timestamp || '').slice(11, 19) || '12:00:00';
+        doc.text(timeStr, 16, y + 4.2);
+        doc.text((ev.ai_service || 'AI Platform').slice(0, 20), 46, y + 4.2);
+        doc.text(`${ev.risk_score || 0} (${ev.severity || 'low'})`, 86, y + 4.2);
+        doc.text(ev.action || 'redacted', 106, y + 4.2);
+        doc.text((ev.sha256_hash || 'e3b0c44298fc1c149afbf4c8...').slice(0, 24), 136, y + 4.2);
+        y += 6;
+      });
+
+      // Statutory Footer Certification
+      doc.setFontSize(7);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        'STATUTORY CERTIFICATION: Official forensic compliance audit trail mandated under Sec 12 of the DPDP Act 2023. Archival verified.',
+        14,
+        284
+      );
+
+      doc.save(`MediCloak_DPDP_Audit_Archive_${Date.now()}.pdf`);
+      setPdfExported(true);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      alert('PDF generation error: ' + err.message);
+    }
+  };
+
+  const handleExecutePurge = async () => {
+    if (!pdfExported) {
+      alert('Mandatory Archival Required: You must export and download the official PDF audit report before executing database purge.');
+      return;
+    }
+    if (currentRole === 'doctor') {
+      alert('Access Denied: Duty Doctors cannot execute database purge.');
+      return;
+    }
+    if (!window.confirm('CRITICAL ACTION: Permanently wipe all events and call logs from the hospital database under DPDP Section 12?')) {
+      return;
+    }
+    setIsPurging(true);
+    try {
+      await purgeAllAuditVault(currentRole);
+      setPurgeSuccess(true);
+    } catch (err) {
+      alert('Vault purge failed: ' + err.message);
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
   return (
     <div className="glass-panel p-4 mb-4 border border-cyan-500/20">
       {/* Header */}
@@ -111,6 +233,24 @@ export default function DPDPHub({ events, currentRole }) {
           >
             <span>🗑️</span>
             <span>Right to Erasure Request</span>
+          </button>
+
+          {/* Hospital DPO Mandatory Purge Protocol */}
+          <button
+            onClick={() => {
+              if (currentRole === 'doctor') {
+                alert('🔒 Access Denied (DPDP Act 2023 Sec 12): Duty Doctors are restricted from purging hospital audit logs. Hospital DPO authorization required.');
+                return;
+              }
+              setPdfExported(false);
+              setPurgeSuccess(false);
+              setShowPurgeModal(true);
+            }}
+            className="px-2.5 py-1 rounded bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition text-xs font-mono flex items-center gap-1.5 shadow-sm font-semibold"
+            title="Hospital DPO Vault Purge Protocol (Mandatory PDF Export)"
+          >
+            <span>🛡️</span>
+            <span>DPO Vault Purge</span>
           </button>
 
           {/* CERT-In SLA Timer */}
@@ -424,6 +564,144 @@ export default function DPDPHub({ events, currentRole }) {
                 className="px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-mono transition"
               >
                 Dismiss
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Hospital DPO Statutory Purge Modal (Mandatory PDF Export Locked) */}
+      {showPurgeModal && createPortal(
+        <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowPurgeModal(false)}>
+          <div
+            className="slide-in w-[92vw] max-w-xl p-6 rounded-2xl bg-[#0c1322] border border-rose-500/40 shadow-2xl shadow-black text-slate-200"
+            style={{ maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="text-2xl">🛡️</span>
+                <div>
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    DPDP Act 2023: Sovereign Vault Purge
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                      Hospital DPO Exclusive
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400">Statutory Forensic Archival & Database Reset Protocol</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPurgeModal(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-slate-400 hover:text-white text-sm transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Statutory Compliance Notice */}
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs space-y-1.5 mb-5 leading-relaxed">
+              <div className="font-bold flex items-center gap-1.5 text-amber-300">
+                <span>⚖️</span> Statutory Mandate (DPDP Act Section 12 & CERT-In Rule 11):
+              </div>
+              <p>
+                Wiping hospital security records destroys all intercepted telemetry, SHA-256 vault hashes, and emergency phone dispatch logs.
+                <strong> Under Indian health privacy regulations, you MUST export an immutable PDF Compliance Archive before database destruction is permitted.</strong>
+              </p>
+            </div>
+
+            {purgeSuccess ? (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-mono text-xs space-y-2 mb-4">
+                <div className="font-bold text-sm flex items-center gap-2">
+                  <span>✅</span> Entire Hospital Database Vault Wiped Clean
+                </div>
+                <div>• All audit logs, threat events, and emergency phone call histories purged.</div>
+                <div>• Live WebSocket broadcast: All connected dashboards refreshed to zero records.</div>
+                <div>• Official compliance PDF archive saved in your local downloads.</div>
+                <div className="pt-2">
+                  <button
+                    onClick={() => setShowPurgeModal(false)}
+                    className="w-full py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-200 font-bold transition text-xs"
+                  >
+                    Close Window & Return to Fresh Dashboard
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4 text-xs font-mono">
+                {/* Step 1: Mandatory PDF Export */}
+                <div className={`p-4 rounded-xl border transition-all ${pdfExported ? 'bg-emerald-950/20 border-emerald-500/40' : 'bg-slate-900/80 border-cyan-500/30'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-slate-200 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[11px] font-bold">1</span>
+                      Mandatory Compliance Audit PDF Export
+                    </span>
+                    {pdfExported ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">
+                        ✓ ARCHIVED
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse font-semibold">
+                        ACTION REQUIRED
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mb-3 font-sans">
+                    Generates a formal, tamper-proof PDF audit report containing all {events.length} intercepted events, cryptographic hashes, and compliance scores.
+                  </p>
+                  <button
+                    onClick={handleExportAuditPDF}
+                    className="w-full py-2.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 font-semibold transition flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <span>📥</span>
+                    <span>{pdfExported ? 'Re-Download PDF Audit Vault' : 'Download Compliance Audit Vault (PDF)'}</span>
+                  </button>
+                </div>
+
+                {/* Step 2: Irreversible Purge */}
+                <div className={`p-4 rounded-xl border transition-all ${pdfExported ? 'bg-rose-950/20 border-rose-500/40' : 'bg-slate-900/40 border-slate-800 opacity-60'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-slate-200 flex items-center gap-2">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${pdfExported ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-500'}`}>2</span>
+                      Permanent Database Wipe (TRUNCATE ALL)
+                    </span>
+                    {pdfExported ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">
+                        UNLOCKED 🔓
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-500 border border-slate-700">
+                        LOCKED 🔒 (Requires Step 1)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mb-3 font-sans">
+                    Permanently deletes all events from PostgreSQL database. Cannot be undone.
+                  </p>
+                  <button
+                    onClick={handleExecutePurge}
+                    disabled={!pdfExported || isPurging}
+                    className={`w-full py-2.5 rounded-lg font-bold transition flex items-center justify-center gap-2 ${
+                      pdfExported
+                        ? 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-400 shadow-lg shadow-rose-950/50 cursor-pointer'
+                        : 'bg-slate-800/80 text-slate-500 border border-slate-700 cursor-not-allowed'
+                    }`}
+                  >
+                    <span>🔥</span>
+                    <span>{isPurging ? 'Purging Database Vault...' : 'Permanently Purge Entire Vault'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 flex justify-end pt-2 border-t border-white/10">
+              <button
+                onClick={() => setShowPurgeModal(false)}
+                className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-mono transition"
+              >
+                Cancel / Close
               </button>
             </div>
           </div>

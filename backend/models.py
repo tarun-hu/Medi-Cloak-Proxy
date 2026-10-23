@@ -107,3 +107,12 @@ class ErasureResponse(BaseModel):
     deletion_receipt_hash: str
     timestamp: str
     governing_law: str = "Digital Personal Data Protection Act, 2023 (Section 12 - Right to Correction and Erasure)"
+
+
+class VisionInterceptRequest(BaseModel):
+    prompt_text: str = Field(..., min_length=2)
+    document_id: str = "apollo_cbc"
+    document_name: str = "Apollo Diagnostics CBC Report"
+    ai_service: str = "ChatGPT-4o (Vision)"
+    department: str = "Hematology / Pathology"
+

@@ -12,6 +12,7 @@ export default function Header({
   currentRole = 'dpo',
   onRoleChange = () => {},
   onOpenDemoSandbox = () => {},
+  onOpenVisionShield = () => {},
 }) {
   const [isLightMode, setIsLightMode] = useState(false);
 
@@ -83,6 +84,19 @@ export default function Header({
         >
           <span>⚡</span>
           <span>Judges Demo Sandbox</span>
+        </button>
+
+        {/* Live Proxy Traffic Interception Mirror (CCTV / SOC Stream) */}
+        <button
+          onClick={onOpenVisionShield}
+          title="Open Live Proxy Traffic Interception Mirror (CCTV SOC Stream)"
+          className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-purple-500/20 via-cyan-500/20 to-emerald-500/20 hover:from-purple-500/30 hover:to-cyan-500/30 text-white border border-cyan-400/40 transition text-xs font-mono font-semibold flex items-center gap-2 shadow-md shadow-cyan-500/10"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span>📡 Live Proxy Mirror</span>
         </button>
 
         {/* Print / Export Report */}

@@ -69,6 +69,19 @@ export async function requestErasure(patientIdentifier, reason = 'DPDP Section 1
   return res.json();
 }
 
+export async function interceptVision(payload) {
+  const res = await fetch(`${API_BASE}/vision/intercept`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Multi-modal vision interception failed');
+  }
+  return res.json();
+}
+
 export async function seedDatabase() {
   const res = await fetch(`${API_BASE}/seed`, {
     method: 'POST',
@@ -99,3 +112,18 @@ export async function triggerTestCall() {
   if (!res.ok) throw new Error('Failed to trigger test call');
   return res.json();
 }
+
+export async function purgeAllAuditVault(userRole = 'dpo') {
+  const res = await fetch(`${API_BASE}/audit/purge-all`, {
+    method: 'POST',
+    headers: {
+      'x-user-role': userRole || 'dpo',
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to execute DPDP Vault Purge');
+  }
+  return res.json();
+}
+
