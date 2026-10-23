@@ -116,7 +116,7 @@ INDIAN_CLINICAL_WHITELIST = [
     "IVF", "RL", "NS", "DNS", "D5", "D10", "KCL",
     "GCS", "SpO2", "RBS", "FBS", "PPBS", "HbA1c", "CBC", "LFT", "KFT", "RFT",
     "ABG", "PT/INR", "USG", "NCCT", "CECT", "HRCT",
-    "AGE", "APD", "LRTI", "URTI", "COPD", "CAD", "CVA", "CKD", "CLD", "DCA", "DKA", "MODS",
+    "Acute Gastroenteritis", "APD", "LRTI", "URTI", "COPD", "CAD", "CVA", "CKD", "CLD", "DCA", "DKA", "MODS",
     "ANC", "PNC", "LSCS", "FTND", "PTB", "SGA", "LGA", "RDS", "TTN", "MAS",
 
     # Hospital Units & Operational Directives
@@ -129,15 +129,19 @@ INDIAN_CLINICAL_WHITELIST.sort(key=lambda s: len(s), reverse=True)
 
 
 def classify_department(text: str) -> str:
-    """Classify hospital department based on clinical context keywords."""
+    """Classify hospital department based on clinical context keywords using word boundaries."""
     text_lower = text.lower()
-    if any(k in text_lower for k in ["er", "emergency", "casualty", "trauma", "triage", "acute", "cpr", "resuscitation", "delhi belly", "madras eye"]):
+    er_patterns = [r"\ber\b", r"\bemergency\b", r"\bcasualty\b", r"\btrauma\b", r"\btriage\b", r"\bacute\b", r"\bcpr\b", r"\bresuscitation\b", r"\bdelhi belly\b", r"\bmadras eye\b"]
+    if any(re.search(pat, text_lower) for pat in er_patterns):
         return "Emergency Room (ER)"
-    elif any(k in text_lower for k in ["oncology", "cancer", "tumor", "chemotherapy", "radiation", "biopsy", "malignant", "carcinoma"]):
+    onc_patterns = [r"\boncology\b", r"\bcancer\b", r"\btumor\b", r"\btumour\b", r"\bchemotherapy\b", r"\bradiation\b", r"\bbiopsy\b", r"\bmalignant\b", r"\bcarcinoma\b"]
+    if any(re.search(pat, text_lower) for pat in onc_patterns):
         return "Oncology"
-    elif any(k in text_lower for k in ["radiology", "mri", "ct scan", "x-ray", "ultrasound", "pet scan", "imaging"]):
+    rad_patterns = [r"\bradiology\b", r"\bmri\b", r"\bct scan\b", r"\bx-ray\b", r"\bultrasound\b", r"\bpet scan\b", r"\bimaging\b"]
+    if any(re.search(pat, text_lower) for pat in rad_patterns):
         return "Radiology"
-    elif any(k in text_lower for k in ["pediatric", "child", "infant", "neonate", "vaccination", "immunization", "growth chart", "kala-azar"]):
+    ped_patterns = [r"\bpediatric\b", r"\bpaediatric\b", r"\bchild\b", r"\binfant\b", r"\bneonate\b", r"\bvaccination\b", r"\bimmunization\b", r"\bgrowth chart\b", r"\bkala-azar\b"]
+    if any(re.search(pat, text_lower) for pat in ped_patterns):
         return "Pediatrics"
     return "OPD / General Medicine"
 
@@ -461,7 +465,18 @@ def regex_redact(text: str) -> dict:
         matches = list(re.finditer(pattern, redacted, re.IGNORECASE))
         for m in matches:
             val = m.group(0)
-            prefix = "MRN" if "MRN" in entity_type else "SSN" if "SSN" in entity_type else "DOB" if "DOB" in entity_type else "EMAIL"
+            if "MRN" in entity_type or "MEDICAL_RECORD" in entity_type:
+                prefix = "MRN"
+            elif "SSN" in entity_type:
+                prefix = "SSN"
+            elif "DOB" in entity_type or "DATE_OF_BIRTH" in entity_type:
+                prefix = "DOB"
+            elif "PHONE" in entity_type:
+                prefix = "PHONE"
+            elif "EMAIL" in entity_type:
+                prefix = "EMAIL"
+            else:
+                prefix = "ID"
             counter_key = prefix if prefix in counters else "LOCATION"
             token = f"[{counter_key}_{counters.get(counter_key, 1)}]"
             counters[counter_key] = counters.get(counter_key, 1) + 1

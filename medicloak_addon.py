@@ -28,7 +28,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 
 # Import the Sovereign PHI redactor
-from phi_redactor import PHIRedactor
+from phi_redactor import PHIRedactor, classify_department
 
 
 # ============================================================
@@ -470,7 +470,7 @@ class MediCloak:
                             "findings": f,
                             "rehydration_map": r,
                             "clinical_terms_preserved": p,
-                            "department": "Emergency Room (ER)" if "madras eye" in user_str.lower() else "OPD / General Medicine",
+                            "department": classify_department(user_str),
                             "engine": "sovereign_core",
                             "redacted_text": red_str,
                         }
@@ -495,7 +495,7 @@ class MediCloak:
                         "findings": f,
                         "rehydration_map": r,
                         "clinical_terms_preserved": p,
-                        "department": "Emergency Room (ER)" if "madras eye" in user_str.lower() else "OPD / General Medicine",
+                        "department": classify_department(user_str),
                         "engine": "sovereign_core",
                         "redacted_text": red_str,
                     }
@@ -518,7 +518,7 @@ class MediCloak:
                         "findings": f,
                         "rehydration_map": r,
                         "clinical_terms_preserved": p,
-                        "department": "Emergency Room (ER)" if "madras eye" in user_str.lower() else "OPD / General Medicine",
+                        "department": classify_department(user_str),
                         "engine": "sovereign_core",
                         "redacted_text": red_str,
                     }
@@ -541,7 +541,7 @@ class MediCloak:
                         "findings": f,
                         "rehydration_map": r,
                         "clinical_terms_preserved": p,
-                        "department": "OPD / General Medicine",
+                        "department": classify_department(user_str),
                         "engine": "sovereign_core",
                         "redacted_text": red_str,
                     }
