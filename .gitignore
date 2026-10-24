@@ -9,3 +9,5 @@ dashboard/.next/
 backend/.env
 scratch/
 *.log
+backend/static_scans/*.jpg
+dashboard/public/scans/*.jpg

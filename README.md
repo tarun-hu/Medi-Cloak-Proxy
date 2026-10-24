@@ -7,44 +7,50 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688.svg)](https://fastapi.tiangolo.com)
 [![React 18](https://img.shields.io/badge/React-18.0+-61DAFB.svg)](https://reactjs.org/)
 [![mitmproxy](https://img.shields.io/badge/mitmproxy-10.0+-red.svg)](https://mitmproxy.org/)
-[![Compliance](https://img.shields.io/badge/Compliance-HIPAA%20%7C%20DPDPA%20%7C%20ABDM-success.svg)](#compliance--security)
+[![Compliance](https://img.shields.io/badge/Compliance-HIPAA%20%7C%20DPDPA%20%7C%20ABDM-success.svg)](#-statutory-compliance--dpdpa-2023)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
 ## 📑 Table of Contents
-1. [Executive Summary & The Problem](#-the-clinical-problem-shadow-ai-in-healthcare)
+1. [Executive Summary & The Clinical Problem](#-the-clinical-problem-shadow-ai-in-healthcare)
 2. [Why Existing Solutions Fail](#-why-existing-solutions-fail)
 3. [Core Architectural Innovations](#-core-architectural-innovations-the-secret-sauce)
-4. [System Architecture & Lifecycle](#-system-architecture--in-flight-lifecycle)
+   - [Dual-Pass Clinical Context Shield & Medical Idiom Whitelisting](#1-dual-pass-clinical-context-shield--medical-idiom-whitelisting)
+   - [Dual-Quadrant In-Flight Multi-Modal Vision Shield](#2-dual-quadrant-in-flight-multi-modal-vision-shield)
+   - [Dual-Registry Sovereign Identity Fabric](#3-dual-registry-sovereign-identity-fabric)
+   - [Sub-15ms In-Flight Layer-7 Interception](#4-sub-15ms-in-flight-layer-7-interception-http--websockets)
+4. [System Architecture & In-Flight Lifecycle](#-system-architecture--in-flight-lifecycle)
 5. [Supported AI Ecosystem (50+ Platforms)](#-supported-ai-ecosystem-50-platforms)
-6. [Quick Start Guide](#-quick-start-guide)
+6. [Clinical Demo Suite: 8 Realistic Hospital Reports](#-clinical-demo-suite-8-realistic-hospital-reports)
+7. [Quick Start Guide](#-quick-start-guide)
    - [Windows 1-Click Launch (Recommended)](#option-a-1-click-windows-launcher-recommended)
    - [Docker Compose Multi-Container Setup](#option-b-docker-compose-setup)
    - [Manual Step-by-Step Setup](#option-c-manual-step-by-step-setup)
-7. [Live Testing & Clinical Verification](#-live-testing--clinical-verification)
-8. [SOC Governance Dashboard](#-soc-governance-dashboard)
-9. [API Endpoints Reference](#-api-endpoints-reference)
-10. [Environment Variables](#-environment-variables)
-11. [Project Structure](#-project-structure)
-12. [Future Roadmap](#-future-roadmap)
-13. [Team & Submission Details](#-team--submission-details)
+8. [Live Testing & Verification Playbook](#-live-testing--verification-playbook)
+9. [SOC Governance Dashboard](#-soc-governance-dashboard)
+10. [API Endpoints Reference](#-api-endpoints-reference)
+11. [Environment Variables](#-environment-variables)
+12. [Project Structure](#-project-structure)
+13. [Future Roadmap](#-future-roadmap)
+14. [Team & Submission Details](#-team--submission-details)
 
 ---
 
 ## 🚨 The Clinical Problem: "Shadow AI" in Healthcare
 
-Generative AI (ChatGPT, Claude, Gemini, Perplexity, Glass Health) is transforming clinical care. Physicians, residents, and nurses use LLMs to summarize patient histories, review lab interactions, validate differential diagnoses, and write discharge notes—saving **2 to 3 hours of documentation fatigue per shift**.
+Generative AI (ChatGPT, Claude, Gemini, Perplexity, Glass Health) is transforming clinical medicine. Physicians, residents, and nurses use LLMs to summarize patient charts, review complex drug-drug interactions, analyze pathology reports, and draft discharge summaries—saving **2 to 3 hours of documentation fatigue per shift**.
 
-However, this has created an institutional cybersecurity crisis:
-* **Uncontrolled Data Exfiltration ("Shadow AI"):** Over 70% of medical staff paste unvetted clinical case notes, lab investigations, and diagnostic scans directly into public consumer AI web interfaces without institutional Business Associate Agreements (BAAs).
+However, this has created an existential cybersecurity and statutory liability crisis:
+* **Uncontrolled Multi-Modal Data Exfiltration ("Shadow AI"):** Over 70% of medical staff paste unvetted clinical case notes or photograph lab slips, biopsy reports, and ECG strips, uploading them directly into consumer AI models without institutional Business Associate Agreements (BAAs).
 * **Massive Regulatory Penalties:** Transmitting unredacted Protected Health Information (PHI) to commercial model providers violates statutory healthcare privacy mandates:
-  * **HIPAA Safe Harbor (US):** 18 statutory personal health identifiers.
-  * **Digital Personal Data Protection Act (DPDPA 2023, India):** Severe penalties for unauthorized personal data processing.
-  * **Ayushman Bharat Digital Mission (ABDM/ABHA):** Strict data governance protocols for citizen health records.
-* **The Failure of Outright Bans:** Hospital IT firewalls attempting to block `chatgpt.com` fail completely. Clinicians bypass blocks using personal 5G mobile hotspots because AI is indispensable to clinical throughput.
+  * **Digital Personal Data Protection Act (DPDP Act 2023, India):** Penalties up to **₹250 Crore ($30M+)** for failing to prevent personal data breaches.
+  * **HIPAA Safe Harbor (US 45 CFR § 164.514):** Strict liability for 18 personal health identifiers.
+  * **Ayushman Bharat Digital Mission (ABDM/ABHA):** Non-negotiable security protocols for citizen digital health accounts.
+* **The Clinician Privacy Blindspot:** Existing DLP systems only look at the patient. But when a prescription or lab report is photographed, the **doctor's private signature, Medical Council Registration Number (MCI/NMC), and official hospital stamp** are leaked to foreign AI training clusters.
+* **The Failure of Outright Bans:** Hospital IT firewalls attempting to block `chatgpt.com` fail completely. Clinicians bypass network firewalls using personal 5G mobile hotspots because AI has become indispensable to clinical throughput.
 
-> **MediCloak's Mission:** Do not ban AI. Govern it transparently. MediCloak acts as an invisible, in-flight security shield that strips patient identifiers in milliseconds before packets leave the hospital perimeter, while preserving complete clinical diagnostic accuracy.
+> **MediCloak's Mission:** Do not ban AI. Govern it transparently. MediCloak operates as a zero-trust, layer-7 transparent security gateway that intercepts text prompts, WebSocket streams, and multi-modal image uploads—stripping patient and clinician identities in milliseconds before packets leave the hospital perimeter, while preserving 100% of diagnostic data and clinical accuracy.
 
 ---
 
@@ -53,9 +59,10 @@ However, this has created an institutional cybersecurity crisis:
 | Existing Approach | How It Operates | Critical Failure in Healthcare |
 | :--- | :--- | :--- |
 | **Firewall / DNS Blacklisting** | Blocks AI domains (`chatgpt.com`, `claude.ai`) | Drives clinicians to unmonitored personal 5G hotspots ("Shadow AI"), worsening risk and killing clinical efficiency. |
-| **Enterprise DLP (Symantec, Zscaler)** | Post-facto log scanning via heavy endpoint agents | Scans hours after data has leaked; completely blind to modern bidirectional **WebSocket streams** used by LLMs. |
+| **Enterprise DLP (Symantec, Zscaler)** | Post-facto log scanning via heavy endpoint agents | Scans hours after data has leaked; completely blind to modern bidirectional **WebSocket streams** and multi-modal canvas uploads. |
 | **Cloud De-Identification APIs (AWS/Google DLP)** | Transmits raw text to a third-party cloud API for scrubbing | **Self-defeating:** Transmitting unredacted patient data to another cloud is itself a data breach; adds 200–500ms latency. |
 | **Generic PII Redactors (Presidio / Spacy)** | Naive Named Entity Recognition (NER) | **The "Naïve Redaction" Trap:** Deletes place-name medical conditions (*Madras Eye* ➔ `[LOCATION] Eye`, *Jaipur Foot* ➔ `[LOCATION] Foot`), causing dangerous LLM hallucinations. |
+| **Standard OCR Scanners** | Cloud-based OCR post-upload | Too slow for in-flight proxying; alters file length causing AWS S3 presigned URL signature mismatches (`400 Bad Request`). |
 
 ---
 
@@ -83,23 +90,56 @@ Raw Doctor Prompt:
 * **Indian Ward Formulations & Drugs:** *Dolo-650, Calpol, Pan-D, Augmentin, Monocef, Meftal-Spas, Combiflam, Glycomet, Shelcal, Becosules, ATT (Anti-Tubercular Therapy), Covaxin, Covishield.*
 * **Clinical Ward Directives & Acronyms:** *OD, BD, TDS, QID, SOS, STAT, NPO, GCS, SpO2, RBS, LFT, KFT, ABG, HRCT, DKA, MODS, LSCS.*
 
-### 2. Dual-Registry Sovereign Identity Fabric
+---
+
+### 2. Dual-Quadrant In-Flight Multi-Modal Vision Shield
+When doctors upload photos of lab sheets, ECG prints, or prescriptions to ChatGPT or Claude Vision, MediCloak intercepts the image stream in flight, inspects the binary, and executes a **Dual-Quadrant De-Identification Protocol**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      HOSPITAL REPORT / SCAN                     │
+│                                                                 │
+│  █████████████████████████████████████████████████████████████  │ ◄─── QUADRANT 1: PATIENT IDENTIFIER SHIELD
+│  █  [PROTECTED - PATIENT DEMOGRAPHICS & HOSPITAL REGISTRY]   █  │      Redacts: Patient Name, Age, Sex, UHID,
+│  █  ABHA ID, CR No, Aadhaar, Barcodes, OPD/IPD Bill No.      █  │      AIIMS/PGI CR No, Ward & Bed details
+│  █████████████████████████████████████████████████████████████  │
+│                                                                 │
+│   CLINICAL DIAGNOSTIC CONTENT PRESERVED 100% INTACT:            │
+│   - Complete Blood Count: Platelet 22,000/mcL (Critical)        │
+│   - Dengue NS1 Antigen: POSITIVE (Reactive)                     │
+│   - 12-Lead ECG: ST-Elevation in leads V1-V4 (Acute STEMI)      │
+│   - MRI Brain: Acute infact in left MCA territory               │
+│   - Histopathology: Invasive ductal carcinoma, Grade III        │
+│                                                                 │
+│  █████████████████████████████████████████████████████████████  │ ◄─── QUADRANT 2: CLINICIAN & SEAL SHIELD
+│  █  [PROTECTED - CLINICIAN PRIVACY & INSTITUTIONAL SEAL]     █  │      Redacts: Doctor Signature, Name, GMC/NMC
+│  █  Doctor Name, GMC/NMC Reg No, Official Stamp & Sign       █  │      Reg No, Hospital Stamp & Phone (DPDP Act 2023)
+│  █████████████████████████████████████████████████████████████  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Byte-Exact S3 Upload Padding (Zero Network Disruption):
+* Commercial AI backends (e.g., OpenAI S3 direct presigned uploads) enforce cryptographic byte-length checks matching the HTTP `Content-Length` header. Standard recompression alters file size, causing AWS S3 signature failures (`HTTP 400 Bad Request`).
+* MediCloak features an in-house **JPEG COM-Marker Byte Alignment Engine** (`pad_jpeg_with_com`). It inserts non-destructive JPEG comment markers (`0xFF 0xFE`) before the End-of-Image (`0xFF 0xD9`), matching the original file length down to the exact byte.
+
+---
+
+### 3. Dual-Registry Sovereign Identity Fabric
 * **Indian Healthcare Identifiers:**
-  * **14-digit ABHA ID (Ayushman Bharat):** Format `\d{2}-\d{4}-\d{4}-\d{4}` or continuous 14-digit strings.
-  * **12-digit Aadhaar UIDAI:** Validated using the **Dihedral Group $D_5$ Verhoeff Algorithm** mathematical checksum to eliminate false positives on random 12-digit numbers.
-  * **Hospital OPD / IPD / MRN numbers & Indian phone formats.**
+  * **14-digit ABHA ID (Ayushman Bharat):** Format `\d{2}-\d{4}-\d{4}-\d{4}` and continuous 14-digit strings.
+  * **12-digit Aadhaar UIDAI:** Mathematically validated using the **Dihedral Group $D_5$ Verhoeff Algorithm** to eliminate false positives on clinical measurements or order numbers.
+  * **Hospital OPD / IPD / CR / MRN numbers:** Handles formats like `AIIMS-2026-98124`, `CR-88741-26`, and `UHID-990812`.
+  * **Indian phone numbers & PIN codes.**
 * **Global Healthcare Identifiers (HIPAA 18 Safe Harbor):**
   * Patient Names, US Social Security Numbers (SSN), Medical Record Numbers, Dates of Birth, Geographic subdivisions, IP addresses, Contact numbers.
 
-### 3. Sub-15ms In-Flight Layer-7 Interception (HTTP & WebSockets)
-* Operates on network line-rate inside the hospital DMZ using an optimized asynchronous `mitmproxy` pipeline.
-* Inspects and mutates outbound streaming HTTP POST JSON bodies and bidirectional **WebSocket / Socket.IO frames** (essential for streaming platforms like Perplexity, ChatGPT, and Claude).
-* Scrubbing occurs entirely in volatile memory—zero patient data ever touches a foreign de-identification cloud.
+---
 
-### 4. Automated Incident Escalation
-* Computes composite risk scores (0–100) based on detected entity sensitivity and volume.
-* Emits live events to the Security Operations Center (SOC) dashboard via WebSockets.
-* Supports autonomous AI voice escalation dispatch (powered by VAPI) to immediately dial the on-call hospital compliance officer for severe bulk-data exfiltration attempts.
+### 4. Sub-15ms In-Flight Layer-7 Interception (HTTP & WebSockets)
+* Operates on network line-rate inside the hospital DMZ using an optimized asynchronous `mitmproxy` pipeline.
+* Inspects and mutates outbound streaming HTTP POST JSON bodies, multipart form uploads, and bidirectional **WebSocket / Socket.IO frames** (critical for streaming platforms like Perplexity, ChatGPT, and Claude).
+* Intercepts both **authenticated and unauthenticated/guest sessions** on ChatGPT (`/backend-anon/conversation`, `/conversation/updates`).
+* Scrubbing occurs entirely in volatile memory—zero patient data ever touches a foreign de-identification cloud.
 
 ---
 
@@ -112,22 +152,23 @@ Raw Doctor Prompt:
 │  ┌───────────────────────┐                                                             │
 │  │ Clinician Workstation │ (Chrome / Edge / Brave / EHR Terminal)                      │
 │  └───────────┬───────────┘                                                             │
-│              │ In-Flight HTTPS / WSS Prompt (Raw PHI)                                  │
+│              │ In-Flight HTTPS / WSS / Multi-Modal Stream                              │
 │              ▼                                                                         │
 │  ┌──────────────────────────────────────────────────────────────────────────────────┐  │
 │  │                    MediCloak Transparent Proxy (Port 8080)                       │  │
 │  │                                                                                  │  │
-│  │   1. Network Interception (mitmproxy Addon)                                      │  │
-│  │   2. Payload Decoder (JSON / URL-encoded / WebSocket Frames)                     │  │
-│  │   3. Pass 1: Clinical Idiom Masking (__WHITELIST_ID_0__)                        │  │
-│  │   4. Pass 2: High-Speed PHI Detection (Presidio + Indian Regex + Verhoeff UIDAI)│  │
-│  │   5. Synthetic Token Substitution ([PATIENT_1], [ABHA_ID_1])                     │  │
-│  │   6. Pass 3: Clinical Idiom Unmasking (Madras Eye restored)                      │  │
-│  │   7. In-Flight Request Mutation (Scrubbed payload replaced in packet stream)    │  │
+│  │   [TEXT STREAM PIPELINE]                     [MULTI-MODAL VISION SHIELD]         │  │
+│  │   1. Decode JSON / Multipart Form Body       1. Sniff image/jpeg, image/png      │  │
+│  │   2. Mask Medical Idioms (__WHITELIST_0__)   2. Dual-Quadrant De-Identification: │  │
+│  │   3. Detect Indian Identifiers & HIPAA       - Upper: Patient Header & Barcode   │  │
+│  │   4. Verhoeff D5 Aadhaar Checksum Valid.    - Lower: Doctor Stamp & Signature   │  │
+│  │   5. Synthetic Token Substitution            3. Byte-Exact JPEG COM Padding      │  │
+│  │   6. Unmask Medical Idioms                   (Matches original Content-Length)   │  │
+│  │   7. In-Flight Request Body Mutation         4. Replace image payload in-stream  │  │
 │  └───────────┬──────────────────────────────────────────┬───────────────────────────┘  │
 │              │                                          │                              │
-│              │ Asynchronous Telemetry                   │ Sanitized Clean Payload      │
-│              │ (POST /api/events)                       │ (Zero Patient Identity)      │
+│              │ Asynchronous Telemetry                   │ Sanitized Clean Stream       │
+│              │ (POST /api/events)                       │ (Zero Patient/Doctor Identity│
 │              ▼                                          ▼                              │
 │  ┌───────────────────────┐                  ┌──────────────────────┐                   │
 │  │ FastAPI Backend (8000)│                  │ Outbound Internet    │                   │
@@ -139,7 +180,8 @@ Raw Doctor Prompt:
 │  │ React SOC Dashboard   │                  │ Commercial AI Cloud                  │   │
 │  │ (Port 3000)           │                  │ (OpenAI, Anthropic, Google,          │   │
 │  │ - Threat Feed & Heatmap│                 │  Perplexity, Glass Health)           │   │
-│  │ - Prompt Diff Modal   │                  └──────────────────────────────────────┘   │
+│  │ - Dual-Image Scan Diff │                  └──────────────────────────────────────┘   │
+│  │ - Text Prompt Diff    │                                                             │
 │  └───────────────────────┘                                                             │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -159,11 +201,28 @@ MediCloak automatically identifies, intercepts, and governs over 50 mainstream a
 
 ---
 
+## 🏥 Clinical Demo Suite (8 Realistic Hospital Reports)
+
+The repository includes 8 synthetic, high-resolution hospital clinical reports located in [`demo_reports/`](demo_reports/) ready for instant evaluation:
+
+| # | Demo Report File | Hospital & Department | Clinical Condition | Protected Identifiers |
+|---|---|---|---|---|
+| 1 | `apollo_cbc_dengue_report.jpg` | Apollo Hospitals (Hematology) | Acute Dengue (Platelets: 22,000/mcL) | Patient Demographics, ABHA ID, Doctor Stamp & Sign |
+| 2 | `aiims_pulmonary_xray_report.jpg` | AIIMS New Delhi (Pulmonology) | Severe Atypical Pneumonia / Consolidation | AIIMS CR No, UHID, Consultant Radiologist Stamp |
+| 3 | `fortis_icu_er_prescription.jpg` | Fortis Healthcare (Emergency ICU) | Septic Shock & Acute Renal Failure | ICU Bed/Ward, Doctor MCI Reg No, Emergency Seal |
+| 4 | `max_cardiology_ecg_echo_report.jpg` | Max Super Speciality (Cardiology) | Acute Anterior STEMI (EF 32%) | IPD Admission No, Cardiologist Sign & Hospital Seal |
+| 5 | `medanta_neurology_mri_brain_report.jpg` | Medanta The Medicity (Neurology) | Acute Ischemic Stroke (Left MCA) | Neuro-radiologist Stamp, ABHA, MRI Case ID |
+| 6 | `tata_memorial_oncology_biopsy_report.jpg` | Tata Memorial Centre (Oncology) | Invasive Ductal Carcinoma (HER2 3+) | TMH Histopath No, Pathologist Signature |
+| 7 | `manipal_endocrinology_diabetic_nephropathy.jpg` | Manipal Hospital (Endocrinology) | Uncontrolled T2D with Diabetic CKD 3b | Lab Order ID, ABHA ID, Diabetologist Seal |
+| 8 | `gangaram_gastroenterology_hepatitis_cirrhosis.jpg` | Sir Ganga Ram Hospital (Gastroenterology)| Decompensated Cirrhosis (HBV DNA+) | Liver Function Barcode, Attending Stamp & Sign |
+
+---
+
 ## 🚀 Quick Start Guide
 
 ### Option A: 1-Click Windows Launcher (Recommended)
 
-For instant local demonstrations on Windows, a complete orchestration script is provided:
+For instant local demonstrations on Windows:
 
 ```cmd
 :: 1. Clone the repository
@@ -251,20 +310,22 @@ open -na "Google Chrome" --args --proxy-server="http://127.0.0.1:8080" --disable
 
 ---
 
-## 🧪 Live Testing & Clinical Verification
+## 🧪 Live Testing & Verification Playbook
 
-### Test 1: Terminal cURL Interception Test
+A complete testing playbook with 12 end-to-end clinical test scenarios is documented in [`TESTING_PROMPTS.md`](TESTING_PROMPTS.md).
 
-#### A. Clean Prompt (No PHI — Allowed Unmodified):
+### Quick Terminal Verification:
+
+#### Test 1: Clean Prompt (No PHI — Forwarded Unmodified)
 ```bash
 curl -x http://localhost:8080 -k -X POST https://api.openai.com/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer sk-fake-key" \
-  -d '{"model": "gpt-4", "messages": [{"role": "user", "content": "What is the recommended dosage for adult Paracetamol?"}]}'
+  -d '{"model": "gpt-4", "messages": [{"role": "user", "content": "What is the standard adult dose of oral Amoxicillin?"}]}'
 ```
 * **Dashboard Result:** Event logged with `LOW` severity (0 PHI entities intercepted).
 
-#### B. High-Risk Clinical Prompt with Indian Identifiers & Medical Idioms:
+#### Test 2: High-Risk Clinical Prompt with Indian Identifiers & Medical Idioms
 ```bash
 curl -x http://localhost:8080 -k -X POST https://api.openai.com/v1/chat/completions \
   -H "Content-Type: application/json" \
@@ -276,23 +337,32 @@ curl -x http://localhost:8080 -k -X POST https://api.openai.com/v1/chat/completi
   ```json
   "content": "Patient [PATIENT_1], ABHA ID: [ABHA_ID_1], Aadhaar: [AADHAAR_ID_1], residing at [LOCATION_1], Madras. Came to ER with acute Madras Eye and Delhi Belly. History of Jaipur Foot prosthesis. Prescribed Dolo-650 BD."
   ```
-* **Dashboard Result:**
+* **Dashboard Verification:**
   * **Critical Threat Event:** Triggered on WebSocket feed with Risk Score ~90.
   * **Protected Entities:** `PATIENT_NAME`, `ABHA_ID`, `AADHAAR_ID`, `LOCATION`.
   * **Preserved Idioms:** `Madras Eye`, `Delhi Belly`, `Jaipur Foot`.
+
+#### Test 3: Multi-Modal Vision Shield (Upload to ChatGPT in Browser)
+1. In the proxied browser, open `https://chatgpt.com`.
+2. Click the attachment paperclip icon and select any report from `demo_reports/` (e.g. `apollo_cbc_dengue_report.jpg`).
+3. Send the prompt: *"Analyze this CBC report and suggest treatment for low platelets."*
+4. Check the **MediCloak Dashboard (`http://localhost:3000`)**:
+   - An event with badge `MULTIMODAL` will appear.
+   - Click the event to view the **Side-by-Side Dual-Quadrant Scan Comparison**: Original unredacted image vs. Redacted image sent to ChatGPT with patient header and doctor seal shielded.
 
 ---
 
 ## 🛡️ SOC Governance Dashboard
 
-The React 18 / TailwindCSS / D3.js dashboard provides hospital security teams with enterprise observability:
+The React 18 / TailwindCSS / D3.js dashboard provides hospital CISOs and compliance teams with real-time enterprise observability:
 
 1. **Live Threat Feed (WebSocket):** Real-time streaming feed of all intercepted AI interactions across hospital departments.
-2. **Side-by-Side Prompt Comparison Modal:** Direct visual diff showing the physician's raw input versus the sanitized payload transmitted to the AI, highlighting exact redacted tokens.
-3. **D3.js Force-Directed AI Network Graph:** Visual topology mapping clinical departments to the AI endpoints they contact (identifying unvetted shadow services).
-4. **D3.js Threat Heatmap:** Time-series risk density mapping high-risk clinical notes over 24-hour periods.
-5. **Incident Mitigation Workflows:** Single-click review actions (`Active` ➔ `Mitigated` ➔ `Resolved`).
-6. **Dark / Light Cyber-SOC Themes:** High-contrast clinical and cybersecurity views with print-ready audit stylesheets.
+2. **Multi-Modal Scan Comparison Modal:** Side-by-side visual viewer showing original high-resolution diagnostic images vs. the masked image transmitted to AI models.
+3. **Text Prompt Differential Modal:** Direct visual diff showing the physician's raw input versus the sanitized payload transmitted to the AI, highlighting exact redacted tokens.
+4. **D3.js Force-Directed AI Network Graph:** Visual topology mapping clinical departments to the AI endpoints they contact (identifying unvetted shadow services).
+5. **D3.js Threat Heatmap:** Time-series risk density mapping high-risk clinical notes over 24-hour periods.
+6. **Incident Mitigation Workflows:** Single-click review actions (`Active` ➔ `Mitigated` ➔ `Resolved`).
+7. **Dark / Light Cyber-SOC Themes:** High-contrast clinical and cybersecurity views with print-ready audit stylesheets.
 
 ---
 
@@ -305,7 +375,7 @@ The FastAPI backend exposes REST and WebSocket interfaces on `http://localhost:8
 | `GET` | `/api/health` | Service health status |
 | `POST` | `/api/events` | Ingestion endpoint called asynchronously by the proxy |
 | `GET` | `/api/events` | Paginated event list with filters (`severity`, `service`, `status`) |
-| `GET` | `/api/events/{id}` | Detailed event inspection including full prompt diffs |
+| `GET` | `/api/events/{id}` | Detailed event inspection including full prompt & image diffs |
 | `PATCH` | `/api/events/{id}/status` | Update incident resolution state |
 | `GET` | `/api/stats` | Aggregate dashboard statistics (total intercepted, risk scores) |
 | `POST` | `/api/seed` | Seed database with representative clinical threat telemetry |
@@ -336,16 +406,24 @@ Configuration is managed via `.env` in the root directory:
 ```
 MediCloak/
 ├── phi_redactor.py             # Dual-pass PHI detection engine with Indian clinical whitelist & Verhoeff UIDAI
-├── medicloak_addon.py          # mitmproxy Layer-7 addon (HTTP & WebSocket interceptor for 50+ AI sites)
+├── medicloak_addon.py          # mitmproxy Layer-7 addon (Dual-Quadrant Vision Shield + HTTP/WSS interceptor)
 ├── run_proxy.py                # Standalone proxy runner wrapper
-├── start_medicloak_demo.bat    # Windows 1-click launcher (Proxy + Backend + Dashboard + Proxied Browser)
+├── TESTING_PROMPTS.md          # 12 copy-paste test scenarios covering Indian clinical entities & vision
+├── demo_reports/               # 8 realistic clinical hospital reports for instant evaluation
+│   ├── apollo_cbc_dengue_report.jpg
+│   ├── aiims_pulmonary_xray_report.jpg
+│   ├── fortis_icu_er_prescription.jpg
+│   ├── max_cardiology_ecg_echo_report.jpg
+│   ├── medanta_neurology_mri_brain_report.jpg
+│   ├── tata_memorial_oncology_biopsy_report.jpg
+│   ├── manipal_endocrinology_diabetic_nephropathy.jpg
+│   └── gangaram_gastroenterology_hepatitis_cirrhosis.jpg
+├── start_medicloak_demo.bat    # Windows 1-click launcher (Proxy + Backend + Dashboard + Sandboxed Browser)
 ├── stop_medicloak_demo.bat     # Windows 1-click cleanup script
 ├── enable_proxy.bat            # Windows system proxy toggle (Enable)
 ├── disable_proxy.bat           # Windows system proxy toggle (Disable)
 ├── launch_brave_proxy.bat      # Sandboxed browser launcher with proxy flags
 ├── docker-compose.yml          # Container configuration (Postgres, FastAPI, React Vite)
-├── assets/                     # Hackathon presentation templates & documentation
-│   └── HEALTHX_2026_Problem_Statement_Submission_Template (1).docx
 ├── backend/
 │   ├── main.py                 # FastAPI application, routing & WebSocket connection manager
 │   ├── database.py             # PostgreSQL connection pooling & schema migrations
@@ -360,7 +438,7 @@ MediCloak/
     │   ├── components/
     │   │   ├── StatsCards.jsx       # Interception metrics summary
     │   │   ├── ThreatFeed.jsx       # Real-time WebSocket event feed
-    │   │   ├── RedactionViewer.jsx  # Side-by-side prompt differential viewer
+    │   │   ├── RedactionViewer.jsx  # Side-by-side prompt & scan differential viewer
     │   │   ├── NetworkGraph.jsx     # D3.js force-directed AI network topology
     │   │   ├── RiskHeatmap.jsx      # D3.js temporal threat risk density map
     │   │   ├── TrafficTimeline.jsx  # D3.js throughput and volume monitor
