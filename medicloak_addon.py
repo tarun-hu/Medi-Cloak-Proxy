@@ -23,6 +23,7 @@ import re
 import time
 import os
 import io
+import base64
 import urllib.request
 import urllib.parse
 import threading
@@ -190,6 +191,34 @@ def mask_clinical_image_bytes(raw_bytes: bytes) -> Tuple[bytes, Optional[str], O
                 f.write(masked_data)
         except Exception as file_err:
             print(f"[MediCloak Save Scans Error]: {file_err}", flush=True)
+
+        # Dual-stream sync scan images to Render Cloud static vault
+        def _sync_scan_cloud():
+            cloud_base = os.getenv("RENDER_BACKEND_URL", "https://medicloak-backend.onrender.com").strip() or "https://medicloak-backend.onrender.com"
+            try:
+                cloud_target = cloud_base.rstrip("/") + "/api/scans/upload"
+                payload = {
+                    "raw_filename": raw_filename,
+                    "masked_filename": masked_filename,
+                    "raw_base64": base64.b64encode(raw_bytes).decode("ascii"),
+                    "masked_base64": base64.b64encode(masked_data).decode("ascii"),
+                }
+                up_data = json.dumps(payload).encode("utf-8")
+                opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                up_req = urllib.request.Request(
+                    cloud_target,
+                    data=up_data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "MediCloak-Sovereign-Gateway/1.0",
+                    },
+                )
+                res = opener.open(up_req, timeout=12)
+                print(f"[MediCloak] 📷 Image Scans Synced to Render Cloud ({raw_filename}) (HTTP {res.status})", flush=True)
+            except Exception as se:
+                print(f"[MediCloak Scan Cloud Sync Note]: {se}", flush=True)
+
+        threading.Thread(target=_sync_scan_cloud, daemon=True).start()
 
         return masked_data, raw_filename, masked_filename, True
     except Exception as e:

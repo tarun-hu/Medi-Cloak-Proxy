@@ -9,6 +9,7 @@ import os
 import asyncio
 import json
 import hashlib
+import base64
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -158,6 +159,27 @@ def _row_to_dict(row: dict) -> dict:
 # ============================================================
 # Routes
 # ============================================================
+
+@app.post("/api/scans/upload")
+async def upload_scan(req: Request):
+    """Receive in-flight masked and raw clinical scans from local proxy and save to static storage."""
+    try:
+        body = await req.json()
+        raw_fn = body.get("raw_filename")
+        masked_fn = body.get("masked_filename")
+        raw_b64 = body.get("raw_base64")
+        masked_b64 = body.get("masked_base64")
+        if raw_fn and raw_b64:
+            clean_raw_fn = os.path.basename(raw_fn)
+            with open(os.path.join(scans_dir, clean_raw_fn), "wb") as f:
+                f.write(base64.b64decode(raw_b64))
+        if masked_fn and masked_b64:
+            clean_masked_fn = os.path.basename(masked_fn)
+            with open(os.path.join(scans_dir, clean_masked_fn), "wb") as f:
+                f.write(base64.b64decode(masked_b64))
+        return {"status": "ok", "message": "Scans successfully synced to cloud static vault"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
 
 @app.get("/api/health")
 def health_check():

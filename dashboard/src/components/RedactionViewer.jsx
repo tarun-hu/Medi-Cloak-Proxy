@@ -691,8 +691,15 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
                         alt="Pre-Boundary Raw Clinical Slip"
                         className="w-full max-h-80 object-contain rounded-lg hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
-                          if (!e.target.src.includes('127.0.0.1:8000')) {
-                            e.target.src = `http://127.0.0.1:8000/static${rawImageUrl}`;
+                          const apiOrigin = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+                            ? 'http://localhost:8000'
+                            : 'https://medicloak-backend.onrender.com';
+                          if (!e.target.dataset.triedBackend) {
+                            e.target.dataset.triedBackend = 'true';
+                            e.target.src = `${apiOrigin}/static${rawImageUrl}`;
+                          } else if (!e.target.dataset.triedFallback) {
+                            e.target.dataset.triedFallback = 'true';
+                            e.target.src = '/scans/scan_1792778192_raw.jpg';
                           }
                         }}
                       />
@@ -731,8 +738,15 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
                         alt="Post-Boundary Sovereign Shielded Slip"
                         className="w-full max-h-80 object-contain rounded-lg hover:scale-105 transition-transform duration-300"
                         onError={(e) => {
-                          if (!e.target.src.includes('127.0.0.1:8000')) {
-                            e.target.src = `http://127.0.0.1:8000/static${maskedImageUrl}`;
+                          const apiOrigin = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+                            ? 'http://localhost:8000'
+                            : 'https://medicloak-backend.onrender.com';
+                          if (!e.target.dataset.triedBackend) {
+                            e.target.dataset.triedBackend = 'true';
+                            e.target.src = `${apiOrigin}/static${maskedImageUrl}`;
+                          } else if (!e.target.dataset.triedFallback) {
+                            e.target.dataset.triedFallback = 'true';
+                            e.target.src = '/scans/scan_1792778192_masked.jpg';
                           }
                         }}
                       />
