@@ -204,9 +204,9 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
       }
 
       const rawUrl = data.audio_url || '';
-      const apiOrigin = import.meta.env.VITE_API_URL
-        ? (import.meta.env.VITE_API_URL.startsWith('http') ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : `https://${import.meta.env.VITE_API_URL}`)
-        : 'http://localhost:8000';
+      const apiOrigin = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+        ? 'http://localhost:8000'
+        : 'https://medicloak-backend.onrender.com';
       const fullAudioUrl = rawUrl.startsWith('http') ? rawUrl : `${apiOrigin}${rawUrl}`;
 
       if (!audioRef.current) {

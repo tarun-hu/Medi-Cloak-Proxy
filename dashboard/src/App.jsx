@@ -212,43 +212,15 @@ export default function App() {
       />
 
       {loadError && !connected && (
-        <div className="mb-4 px-4 py-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-xl flex items-center justify-between text-xs font-mono text-indigo-300 flex-wrap gap-2 shadow-lg shadow-black/50">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="animate-spin text-sm">⏳</span>
-              <span className="font-semibold text-white">Connecting to MediCloak Sovereign Cloud Backend...</span>
-              <span className="text-gray-400">Target: <code className="text-cyan-300 bg-black/50 px-1.5 py-0.5 rounded border border-white/10">{getApiBase()}</code></span>
-            </div>
-            <p className="text-[11px] text-gray-400">
-              Render Free Tier wakes up in ~45 seconds on cold start. Retrying automatically every 5s...
-            </p>
+        <div className="mb-4 px-4 py-2 bg-indigo-950/40 border border-indigo-500/30 rounded-xl flex items-center justify-between text-xs font-mono text-indigo-300 flex-wrap gap-2 shadow-lg shadow-black/50">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="animate-spin text-sm">⏳</span>
+            <span className="font-semibold text-white">Connecting to MediCloak Sovereign Cloud...</span>
+            <span className="text-gray-400">Target: <code className="text-cyan-300 bg-black/50 px-1.5 py-0.5 rounded border border-white/10">medicloak-backend.onrender.com</code></span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const current = localStorage.getItem('medicloak_api_url') || getApiBase();
-                const url = window.prompt(
-                  'Enter your Render Backend URL:\n(Find this under Resources -> medicloak-backend in Render)',
-                  current
-                );
-                if (url !== null) {
-                  if (url.trim()) {
-                    localStorage.setItem('medicloak_api_url', url.trim());
-                  } else {
-                    localStorage.removeItem('medicloak_api_url');
-                  }
-                  window.location.reload();
-                }
-              }}
-              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition shadow-sm"
-            >
-              ⚙️ Fix / Change Backend URL
-            </button>
-            <span className="text-[10px] bg-indigo-500/20 text-indigo-200 px-2 py-1 rounded border border-indigo-500/30 font-semibold">
-              Auto-Polling Active
-            </span>
-          </div>
+          <span className="text-[10px] bg-indigo-500/20 text-indigo-200 px-2 py-0.5 rounded border border-indigo-500/30 font-semibold animate-pulse">
+            Connecting...
+          </span>
         </div>
       )}
 

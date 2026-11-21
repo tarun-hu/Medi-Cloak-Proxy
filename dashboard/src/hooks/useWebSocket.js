@@ -1,25 +1,17 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 export function getWsUrl() {
-  // 1. User manual override stored in localStorage
+  // 1. User manual override stored in localStorage (if any)
   if (typeof window !== 'undefined' && localStorage.getItem('medicloak_api_url')) {
     const clean = localStorage.getItem('medicloak_api_url').replace(/^https?:\/\//, '').replace(/\/$/, '').replace(/\/api$/, '');
     return `wss://${clean}/api/ws`;
   }
-  // 2. Build-time injected VITE_API_URL
-  const envApi = import.meta.env.VITE_API_URL;
-  if (envApi && typeof envApi === 'string' && envApi !== 'undefined' && !envApi.includes('localhost')) {
-    const clean = envApi.replace(/^https?:\/\//, '').replace(/\/$/, '').replace(/\/api$/, '');
-    const proto = envApi.startsWith('http://') ? 'ws:' : 'wss:';
-    return `${proto}//${clean}/api/ws`;
+  // 2. Localhost development
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'ws://localhost:8000/api/ws';
   }
-  // 3. Dynamic cloud derivation on Render (*.onrender.com)
-  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
-    const backendHost = window.location.hostname.replace('medicloak-dashboard', 'medicloak-backend');
-    return `wss://${backendHost}/api/ws`;
-  }
-  // 4. Default to local development
-  return 'ws://localhost:8000/api/ws';
+  // 3. Official Verified Render Cloud Backend
+  return 'wss://medicloak-backend.onrender.com/api/ws';
 }
 
 export function useWebSocket(onMessage) {

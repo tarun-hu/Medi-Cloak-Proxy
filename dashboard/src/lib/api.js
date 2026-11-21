@@ -1,22 +1,15 @@
 export function getApiBase() {
-  // 1. User manual override stored in localStorage
+  // 1. User manual override stored in localStorage (if any)
   if (typeof window !== 'undefined' && localStorage.getItem('medicloak_api_url')) {
     const custom = localStorage.getItem('medicloak_api_url').replace(/\/$/, '');
     return custom.endsWith('/api') ? custom : `${custom}/api`;
   }
-  // 2. Build-time injected VITE_API_URL
-  const envApi = import.meta.env.VITE_API_URL;
-  if (envApi && typeof envApi === 'string' && envApi !== 'undefined' && !envApi.includes('localhost')) {
-    const clean = envApi.startsWith('http') ? envApi.replace(/\/$/, '') : `https://${envApi.replace(/\/$/, '')}`;
-    return clean.endsWith('/api') ? clean : `${clean}/api`;
+  // 2. Localhost development
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:8000/api';
   }
-  // 3. Dynamic cloud derivation on Render (*.onrender.com)
-  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
-    const backendHost = window.location.hostname.replace('medicloak-dashboard', 'medicloak-backend');
-    return `https://${backendHost}/api`;
-  }
-  // 4. Default to local development backend
-  return 'http://localhost:8000/api';
+  // 3. Official Verified Render Cloud Backend (Zero-configuration for judges worldwide)
+  return 'https://medicloak-backend.onrender.com/api';
 }
 
 export async function fetchStats() {
