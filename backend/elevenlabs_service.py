@@ -25,7 +25,7 @@ CURATED_VOICES = {
         "gender": "male",
     },
     "rachel": {
-        "id": "21m00Tcm4TlvDq8ikWAM",
+        "id": "EXAVITQu4vr4xnSDxMaL",  # Sarah (Free Premade Confident Voice)
         "name": "Rachel (Compliance Officer)",
         "role": "Data Protection Officer",
         "style": "Calm, precise regulatory compliance voice",
@@ -83,11 +83,10 @@ def get_voice_info(voice_key: str) -> dict:
 
 def generate_incident_script(event: Dict[str, Any], voice_key: str = "adam") -> str:
     """
-    Generate an authoritative CISO tactical incident briefing script
-    tailored to the specific intercepted PHI event.
+    Generate a concise, punchy, and highly descriptive CISO tactical incident briefing script (~10-12 seconds).
     """
-    service = event.get("ai_service", "General LLM")
-    dept = event.get("department", "Hospital Clinical Ward")
+    service = event.get("ai_service", "AI Service")
+    dept = event.get("department", "Hospital DMZ")
     risk_score = event.get("risk_score", 85)
     severity = str(event.get("severity", "CRITICAL")).upper()
     latency = event.get("latency_ms", 14.2)
@@ -101,39 +100,28 @@ def generate_incident_script(event: Dict[str, Any], voice_key: str = "adam") -> 
             phi_types = [phi_types]
 
     phi_count = len(phi_types)
-    phi_str = ", ".join(phi_types[:4]) if phi_types else "Direct Patient Identifiers"
+    phi_str = ", ".join(phi_types[:3]) if phi_types else "Patient Identifiers"
 
-    # Tone varies by voice persona
+    # Crisp, fast, under 35 words for punchy 10-12 second tactical playback
     if voice_key == "rachel":
-        # DPDP / Legal Compliance emphasis
+        # DPDP Legal Compliance Persona
         return (
-            f"Regulatory Compliance Dispatch. MediCloak sovereign gateway has intercepted an unapproved transmission "
-            f"from {dept} directed to {service}. "
-            f"Under Section 8 and Section 12 of India's Digital Personal Data Protection Act 2023, "
-            f"{phi_count} protected health elements were identified, specifically: {phi_str}. "
-            f"Our zero-trust redaction pipeline neutralized all patient data in {latency} milliseconds, "
-            f"preserving clinical diagnostic context while preventing unlawful data transfer. "
-            f"Audit hash {sha_hash} has been sealed in the immutable compliance vault."
+            f"DPDP Compliance Dispatch. MediCloak intercepted an outbound {service} query from {dept}. "
+            f"{phi_count} health elements—including {phi_str}—were neutralized in {latency} milliseconds under Section 12. "
+            f"Zero patient data leaked. Vault signature {sha_hash} sealed."
         )
     elif voice_key == "george":
-        # Technical SOC emphasis
+        # SOC Operations Lead Persona
         return (
-            f"SOC Alert. Severity {severity}, risk index {risk_score} out of 100. "
-            f"Layer-7 transparent proxy triggered on outbound payload to {service} host. "
-            f"In-flight inspection flagged {phi_count} unencrypted health identifiers: {phi_str}. "
-            f"Threat neutralized. Reversible synthetic tokens injected in {latency} milliseconds. "
-            f"Perimeter remains secure. Cryptographic record logged under ID {sha_hash}."
+            f"SOC Alert, severity {severity}. Intercepted {phi_count} unencrypted identifiers heading to {service}: {phi_str}. "
+            f"Zero-trust tokens deployed in {latency} milliseconds. Perimeter secure."
         )
     else:
-        # Adam (CISO Command default)
+        # Adam (CISO Command Default)
         return (
-            f"Security Advisory from MediCloak Sovereign Gateway. "
-            f"At terminal {dept}, an outbound AI consultation was intercepted heading to {service}. "
-            f"MediCloak identified {phi_count} protected health attributes including {phi_str}. "
-            f"Under HIPAA Safe Harbor and India DPDP 2023 guidelines, all sensitive attributes were stripped "
-            f"and replaced with zero-trust synthetic tokens in {latency} milliseconds. "
-            f"Clinical semantic context was preserved for diagnostic accuracy. "
-            f"Zero unprotected patient data breached the hospital DMZ. Sovereign audit signature {sha_hash} sealed."
+            f"Security Advisory. Outbound transmission to {service} from {dept} intercepted. "
+            f"MediCloak neutralized {phi_count} protected health attributes—including {phi_str}—in {latency} milliseconds under India DPDP Act 2023. "
+            f"Zero patient data breached."
         )
 
 
@@ -201,9 +189,11 @@ def synthesize_briefing_audio(
 
     script = generate_incident_script(event, voice_key=voice_key)
 
-    # Cache filenames
-    mp3_filename = f"ciso_briefing_{event_id}_{voice_key}.mp3"
-    wav_filename = f"ciso_briefing_{event_id}_{voice_key}.wav"
+    # Cache filenames with content hash so any script updates generate fresh audio immediately
+    import hashlib
+    script_hash = hashlib.md5(script.encode("utf-8")).hexdigest()[:8]
+    mp3_filename = f"ciso_briefing_{event_id}_{voice_key}_{script_hash}.mp3"
+    wav_filename = f"ciso_briefing_{event_id}_{voice_key}_{script_hash}.wav"
 
     mp3_path = AUDIO_STORAGE_DIR / mp3_filename
     wav_path = AUDIO_STORAGE_DIR / wav_filename
