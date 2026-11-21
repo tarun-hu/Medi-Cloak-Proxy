@@ -83,6 +83,16 @@ async def lifespan(app: FastAPI):
     # Startup
     init_db()
     print("[MediCloak] Database initialized successfully")
+    try:
+        with get_cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM events")
+            if cur.fetchone()[0] == 0:
+                print("[MediCloak] Empty database detected. Seeding 50 clinical demo events...")
+                events = generate_seed_events(50)
+                insert_seed_events(cur, events)
+                print(f"[MediCloak] Successfully seeded {len(events)} demo events.")
+    except Exception as se:
+        print(f"[MediCloak Seeding Note]: {se}")
     yield
     # Shutdown
     close_pool()
