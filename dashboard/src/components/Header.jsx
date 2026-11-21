@@ -119,8 +119,27 @@ export default function Header({
           <span>{isLightMode ? 'Dark' : 'Light'}</span>
         </button>
 
-        {/* Live indicator */}
-        <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-black/40 border border-white/10">
+        {/* Live indicator & Backend Manager */}
+        <button
+          type="button"
+          onClick={() => {
+            const current = localStorage.getItem('medicloak_api_url') || (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com') ? `https://${window.location.hostname.replace('medicloak-dashboard', 'medicloak-backend')}` : 'http://localhost:8000');
+            const url = window.prompt(
+              'Target MediCloak Backend URL:\n(Found in Render Dashboard -> Resources -> medicloak-backend)',
+              current
+            );
+            if (url !== null) {
+              if (url.trim()) {
+                localStorage.setItem('medicloak_api_url', url.trim());
+              } else {
+                localStorage.removeItem('medicloak_api_url');
+              }
+              window.location.reload();
+            }
+          }}
+          title={connected ? "Connected to Sovereign Engine. Click to inspect URL." : "Disconnected. Click to configure target Backend URL."}
+          className="flex items-center gap-2 px-2.5 py-1 rounded bg-black/40 border border-white/10 hover:border-white/30 transition cursor-pointer"
+        >
           <div
             className={`w-2 h-2 rounded-full ${
               connected
@@ -139,7 +158,7 @@ export default function Header({
           <span className="text-[11px] font-mono text-cyan-300">
             {totalEvents} events
           </span>
-        </div>
+        </button>
       </div>
     </header>
   );
