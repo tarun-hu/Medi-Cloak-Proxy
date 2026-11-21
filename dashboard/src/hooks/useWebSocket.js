@@ -1,6 +1,21 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-const WS_URL = 'ws://localhost:8000/api/ws';
+const envApi = import.meta.env.VITE_API_URL;
+
+function getWsUrl() {
+  if (envApi) {
+    const clean = envApi.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    const proto = envApi.startsWith('http://') ? 'ws:' : 'wss:';
+    return `${proto}//${clean}/api/ws`;
+  }
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${proto}//${window.location.host}/api/ws`;
+  }
+  return 'ws://localhost:8000/api/ws';
+}
+
+const WS_URL = getWsUrl();
 
 export function useWebSocket(onMessage) {
   const [connected, setConnected] = useState(false);

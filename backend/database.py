@@ -21,6 +21,9 @@ def _normalize_db_url(url: str) -> str:
         return url
     if url.startswith("postgres://"):
         url = "postgresql://" + url[len("postgres://"):]
+    if "localhost" not in url and "127.0.0.1" not in url and "sslmode" not in url:
+        sep = "&" if "?" in url else "?"
+        url = f"{url}{sep}sslmode=require"
     return url
 
 DATABASE_URL = _normalize_db_url(os.getenv(
@@ -43,6 +46,8 @@ def _parse_dsn(url: str) -> dict:
     qs = parse_qs(parsed.query)
     if "sslmode" in qs:
         params["sslmode"] = qs["sslmode"][0]
+    elif "localhost" not in params["host"] and "127.0.0.1" not in params["host"]:
+        params["sslmode"] = "require"
     return params
 
 

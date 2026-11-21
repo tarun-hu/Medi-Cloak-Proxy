@@ -106,10 +106,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow all origins for hackathon
+# CORS — allow all local and cloud origins (including *.onrender.com)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
