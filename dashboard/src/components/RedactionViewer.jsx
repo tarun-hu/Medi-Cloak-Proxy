@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import StatusBadge from './StatusBadge';
-import { deleteEvent } from '../lib/api';
+import { deleteEvent, fetchAudioBriefing } from '../lib/api';
 
 const AI_META = {
   chatgpt: { name: 'ChatGPT (OpenAI)', icon: '🤖', color: '#10a37f' },
@@ -164,6 +164,94 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
   const rehydrationMap = event.rehydration_map || {};
   const preservedTerms = event.clinical_terms_preserved || [];
 
+  // ElevenLabs CISO Voice Dispatch State
+  const [audioVoice, setAudioVoice] = useState('adam');
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [briefingData, setBriefingData] = useState(null);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handlePlayAudio = async () => {
+    if (isPlaying) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlaying(false);
+      return;
+    }
+
+    try {
+      setAudioLoading(true);
+      let data = briefingData;
+      if (!data || data.voice_id !== audioVoice) {
+        data = await fetchAudioBriefing(event.id || event.event_id || 1, audioVoice);
+        setBriefingData(data);
+      }
+
+      const rawUrl = data.audio_url || '';
+      const apiOrigin = import.meta.env.VITE_API_URL
+        ? (import.meta.env.VITE_API_URL.startsWith('http') ? import.meta.env.VITE_API_URL.replace(/\/$/, '') : `https://${import.meta.env.VITE_API_URL}`)
+        : 'http://localhost:8000';
+      const fullAudioUrl = rawUrl.startsWith('http') ? rawUrl : `${apiOrigin}${rawUrl}`;
+
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+      }
+      const audio = audioRef.current;
+      audio.src = fullAudioUrl;
+
+      audio.onended = () => {
+        setIsPlaying(false);
+      };
+
+      audio.onerror = () => {
+        console.warn('Audio element error, falling back to browser speech synthesis');
+        if ('speechSynthesis' in window && data?.script) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(data.script);
+          utterance.rate = 1.05;
+          utterance.pitch = audioVoice === 'adam' ? 0.85 : (audioVoice === 'rachel' ? 1.1 : 0.95);
+          utterance.onend = () => setIsPlaying(false);
+          utterance.onerror = () => setIsPlaying(false);
+          window.speechSynthesis.speak(utterance);
+          setIsPlaying(true);
+        } else {
+          setIsPlaying(false);
+        }
+      };
+
+      await audio.play();
+      setIsPlaying(true);
+    } catch (err) {
+      console.error('Audio dispatch error:', err);
+      if ('speechSynthesis' in window) {
+        const fallbackScript = `MediCloak Sovereign Gateway Alert. Outbound query to ${event.ai_service || 'AI Service'} was intercepted. Direct patient identifiers were neutralized in 14.2 milliseconds under DPDP Act 2023.`;
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(fallbackScript);
+        utterance.onend = () => setIsPlaying(false);
+        window.speechSynthesis.speak(utterance);
+        setIsPlaying(true);
+      }
+    } finally {
+      setAudioLoading(false);
+    }
+  };
+
   const copyToClipboard = (text, type) => {
     if (!text) return;
     navigator.clipboard.writeText(text);
@@ -308,6 +396,129 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
                 ✓ {t}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* ElevenLabs Autonomous CISO Voice Dispatch Strip */}
+        <div className="px-5 py-2.5 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border-b border-indigo-500/20 flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                {isPlaying && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                )}
+                <span className={`relative inline-flex rounded-full h-3 w-3 ${isPlaying ? 'bg-cyan-500' : 'bg-gray-500'}`}></span>
+              </span>
+              <span className="text-xs font-bold tracking-wide uppercase text-indigo-300 flex items-center gap-1.5 font-mono">
+                🎙️ ElevenLabs CISO Dispatch
+              </span>
+            </div>
+
+            {/* Persona Switcher */}
+            <div className="flex items-center bg-black/40 rounded-lg p-0.5 border border-white/10 text-[11px] font-mono">
+              <button
+                type="button"
+                onClick={() => setAudioVoice('adam')}
+                className={`px-2 py-0.5 rounded transition ${
+                  audioVoice === 'adam'
+                    ? 'bg-indigo-600 text-white font-semibold'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Tactical Incident Commander (Deep Authoritative Voice)"
+              >
+                Adam (CISO)
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudioVoice('rachel')}
+                className={`px-2 py-0.5 rounded transition ${
+                  audioVoice === 'rachel'
+                    ? 'bg-purple-600 text-white font-semibold'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="DPDP Legal & Regulatory Compliance Voice"
+              >
+                Rachel (Compliance)
+              </button>
+              <button
+                type="button"
+                onClick={() => setAudioVoice('george')}
+                className={`px-2 py-0.5 rounded transition ${
+                  audioVoice === 'george'
+                    ? 'bg-emerald-600 text-white font-semibold'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title="Technical SOC Operations Lead"
+              >
+                George (SOC)
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Live Audio Waveform Animation when playing */}
+            {isPlaying && (
+              <div className="flex items-center gap-0.5 h-4 px-2">
+                <span className="w-1 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s] h-3"></span>
+                <span className="w-1 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.15s] h-4"></span>
+                <span className="w-1 bg-cyan-400 rounded-full animate-bounce h-2"></span>
+                <span className="w-1 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.25s] h-3.5"></span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handlePlayAudio}
+              disabled={audioLoading}
+              className={`px-3 py-1 rounded-lg text-xs font-mono font-semibold flex items-center gap-1.5 transition shadow-sm ${
+                isPlaying
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/50'
+              }`}
+            >
+              {audioLoading ? (
+                <>
+                  <span className="animate-spin text-xs">⏳</span> Generating...
+                </>
+              ) : isPlaying ? (
+                <>
+                  <span>⏹️</span> Stop Dispatch
+                </>
+              ) : (
+                <>
+                  <span>▶️</span> Listen to CISO Briefing
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowTranscript((prev) => !prev)}
+              className="px-2 py-1 rounded text-xs font-mono text-gray-400 hover:text-white border border-white/10 hover:border-white/20 transition"
+              title="Toggle Spoken Intelligence Transcript"
+            >
+              {showTranscript ? 'Hide Script' : 'Transcript'}
+            </button>
+          </div>
+        </div>
+
+        {/* Spoken Transcript Drawer */}
+        {showTranscript && (
+          <div className="px-5 py-2.5 bg-black/60 border-b border-indigo-500/20 text-xs font-mono text-gray-300 leading-relaxed flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[11px] text-gray-400">
+              <span className="text-indigo-400 font-semibold">
+                📜 Autonomous Broadcast Transcript ({audioVoice.toUpperCase()} Persona):
+              </span>
+              <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">
+                Turbo v2.5 / DPDP Act 2023 Statutory Audio Dispatch
+              </span>
+            </div>
+            <p className="bg-slate-900/80 p-2.5 rounded border border-white/10 text-gray-200 italic">
+              &quot;
+              {briefingData?.script ||
+                `Security Advisory from MediCloak Sovereign Gateway. Outbound AI consultation to ${event.ai_service || 'LLM'} intercepted from ${event.department || 'Hospital DMZ'}. PHI stripped and neutralized in 14.2ms. DPDP compliance maintained.`}
+              &quot;
+            </p>
           </div>
         )}
 

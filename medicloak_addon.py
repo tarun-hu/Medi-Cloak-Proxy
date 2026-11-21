@@ -196,7 +196,8 @@ def mask_clinical_image_bytes(raw_bytes: bytes) -> Tuple[bytes, Optional[str], O
 # ============================================================
 
 PHI_ENGINE = "regex"
-BACKEND_URL = "http://127.0.0.1:8000/api/events"
+BACKEND_URL = os.getenv("MEDICLOAK_BACKEND_URL", "http://127.0.0.1:8000/api/events")
+RENDER_BACKEND_URL = os.getenv("RENDER_BACKEND_URL", "").strip()
 
 # Comprehensive General & Healthcare AI Domains Registry
 AI_DOMAINS = {
@@ -573,6 +574,22 @@ class MediCloak:
                 print(f"[MediCloak] 📡 Logged event to Dashboard Backend (HTTP {resp.status})", flush=True)
             except Exception as e:
                 print(f"[MediCloak Backend Post Error]: {e}", flush=True)
+
+            # Dual-stream sync to Render Cloud Sovereign Audit Vault (if configured)
+            if RENDER_BACKEND_URL:
+                try:
+                    cloud_target = RENDER_BACKEND_URL.rstrip("/")
+                    if not cloud_target.endswith("/api/events"):
+                        cloud_target += "/api/events"
+                    cloud_req = urllib.request.Request(
+                        cloud_target,
+                        data=data,
+                        headers={"Content-Type": "application/json"},
+                    )
+                    c_resp = opener.open(cloud_req, timeout=6)
+                    print(f"[MediCloak] ☁️ Dual-Stream Synced to Render Cloud ({cloud_target}) (HTTP {c_resp.status})", flush=True)
+                except Exception as ce:
+                    print(f"[MediCloak Render Cloud Sync Note]: {ce}", flush=True)
 
         threading.Thread(target=_send, daemon=True).start()
 

@@ -20,6 +20,7 @@ from database import init_db, get_cursor, dict_cursor, close_pool
 from models import EventCreate, EventResponse, StatusUpdate, StatsResponse, ErasureRequest, ErasureResponse, VisionInterceptRequest
 from seed import generate_seed_events, insert_seed_events
 from vapi_caller import maybe_trigger_call, is_configured as vapi_is_configured, _make_vapi_call, ALERT_PHONE_NUMBER
+import elevenlabs_service
 
 
 # ============================================================
@@ -108,6 +109,11 @@ app.add_middleware(
 scans_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static_scans")
 os.makedirs(scans_dir, exist_ok=True)
 app.mount("/static/scans", StaticFiles(directory=scans_dir), name="static_scans")
+
+# Mount static audio directory for ElevenLabs autonomous CISO voice dispatches
+audio_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static_audio")
+os.makedirs(audio_dir, exist_ok=True)
+app.mount("/static/audio", StaticFiles(directory=audio_dir), name="static_audio")
 
 
 # ============================================================
@@ -884,6 +890,63 @@ async def purge_all_audit_vault(x_user_role: str = Header(default="dpo")):
         "records_purged": "all",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
+
+
+# ============================================================
+# ElevenLabs Autonomous CISO Voice Dispatch
+# ============================================================
+
+@app.get("/api/elevenlabs/status")
+def get_elevenlabs_status():
+    """Returns the operational status and curated voice models for ElevenLabs dispatch."""
+    return {
+        "configured": elevenlabs_service.is_configured(),
+        "api_key_set": bool(elevenlabs_service.get_api_key()),
+        "default_voice": os.getenv("ELEVENLABS_DEFAULT_VOICE_ID", "pNInz6obpgDQGcFmaJgB"),
+        "curated_voices": elevenlabs_service.CURATED_VOICES,
+    }
+
+
+@app.post("/api/events/{event_id}/audio-briefing")
+def get_event_audio_briefing(
+    event_id: str,
+    voice_id: str = Query(default="adam", description="Voice persona: adam, rachel, or george"),
+    force_refresh: bool = Query(default=False)
+):
+    """
+    Generates or retrieves a cached autonomous tactical audio briefing
+    narrated by ElevenLabs voice AI for a specific PHI interception event.
+    """
+    event_dict = None
+    try:
+        with get_cursor(cursor_factory=dict_cursor()) as cur:
+            cur.execute(
+                "SELECT * FROM events WHERE id::text = %s OR event_id::text = %s LIMIT 1",
+                (event_id, event_id),
+            )
+            row = cur.fetchone()
+            if row:
+                event_dict = _row_to_dict(row)
+    except Exception as e:
+        print(f"[Audio Briefing DB Lookup Note]: {e}", flush=True)
+
+    if not event_dict:
+        # Fallback event mock for non-persisted or simulated event demo
+        event_dict = {
+            "id": event_id,
+            "ai_service": "Hospital LLM Consultation",
+            "department": "Cardiology / Inpatient",
+            "phi_types": ["PATIENT_NAME", "ABHA_ID", "DIAGNOSIS"],
+            "risk_score": 88,
+            "latency_ms": 14.2,
+            "severity": "CRITICAL",
+        }
+
+    return elevenlabs_service.synthesize_briefing_audio(
+        event_dict,
+        voice_key=voice_id,
+        force_refresh=force_refresh
+    )
 
 
 # ============================================================

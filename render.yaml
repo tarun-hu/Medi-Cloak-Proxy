@@ -1,0 +1,64 @@
+# ==============================================================================
+# MediCloak Sovereign AI Gateway - Render Blueprint Specification (IaC)
+# https://render.com/docs/blueprint-spec
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. MediCloak FastAPI Sovereign Backend & Threat Engine
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: medicloak-backend
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r backend/requirements.txt"
+    startCommand: "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: medicloak-db
+          property: connectionString
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_DEFAULT_VOICE_ID
+        value: pNInz6obpgDQGcFmaJgB
+      - key: VAPI_ENABLED
+        value: "false"
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+  # ----------------------------------------------------------------------------
+  # 2. MediCloak CISO Command Dashboard (Vite React + Tailwind)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: medicloak-dashboard
+    runtime: static
+    region: oregon
+    plan: free
+    buildCommand: "cd dashboard && npm install && npm run build"
+    staticPublishPath: "./dashboard/dist"
+    autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: medicloak-backend
+          envVarKey: RENDER_EXTERNAL_URL
+          property: host
+
+databases:
+  # ----------------------------------------------------------------------------
+  # 3. MediCloak Immutable Audit Vault (Managed PostgreSQL)
+  # ----------------------------------------------------------------------------
+  - name: medicloak-db
+    region: oregon
+    plan: free
+    databaseName: medicloak
+    user: medicloak_admin

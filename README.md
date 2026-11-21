@@ -20,13 +20,15 @@
    - [Dual-Quadrant In-Flight Multi-Modal Vision Shield](#2-dual-quadrant-in-flight-multi-modal-vision-shield)
    - [Dual-Registry Sovereign Identity Fabric](#3-dual-registry-sovereign-identity-fabric)
    - [Sub-15ms In-Flight Layer-7 Interception](#4-sub-15ms-in-flight-layer-7-interception-http--websockets)
+   - [ElevenLabs Autonomous CISO Voice Dispatch](#5-elevenlabs-autonomous-ciso-voice-dispatch--incident-intelligence)
 4. [System Architecture & In-Flight Lifecycle](#-system-architecture--in-flight-lifecycle)
 5. [Supported AI Ecosystem (50+ Platforms)](#-supported-ai-ecosystem-50-platforms)
 6. [Clinical Demo Suite: 8 Realistic Hospital Reports](#-clinical-demo-suite-8-realistic-hospital-reports)
 7. [Quick Start Guide](#-quick-start-guide)
    - [Windows 1-Click Launch (Recommended)](#option-a-1-click-windows-launcher-recommended)
-   - [Docker Compose Multi-Container Setup](#option-b-docker-compose-setup)
-   - [Manual Step-by-Step Setup](#option-c-manual-step-by-step-setup)
+   - [1-Click Render Cloud Deployment (render.yaml)](#option-b-1-click-render-cloud-deployment-renderyaml)
+   - [Docker Compose Multi-Container Setup](#option-c-docker-compose-setup)
+   - [Manual Step-by-Step Setup](#option-d-manual-step-by-step-setup)
 8. [Live Testing & Verification Playbook](#-live-testing--verification-playbook)
 9. [SOC Governance Dashboard](#-soc-governance-dashboard)
 10. [API Endpoints Reference](#-api-endpoints-reference)
@@ -143,6 +145,16 @@ When doctors upload photos of lab sheets, ECG prints, or prescriptions to ChatGP
 
 ---
 
+### 5. ElevenLabs Autonomous CISO Voice Dispatch & Incident Intelligence
+* **Studio-Quality Voice AI Alerts:** Integrates ElevenLabs' ultra-low latency TTS engine (`eleven_turbo_v2_5`) to synthesize authoritative security briefings for hospital compliance officers.
+* **Curated Healthcare Personas:**
+  * **Adam (Chief Security Officer):** Deep, calm, authoritative CISO breach advisory.
+  * **Rachel (Compliance Director):** Crisp, clinical governance analysis under DPDP Act 2023.
+* **Interactive SOC Audio Waveform Player:** Security officers can listen to dynamic incident briefings directly within the React SOC Dashboard modal with real-time audio visualizer waves.
+* **Edge-to-Ear Caching:** Voice briefings are cached to disk to eliminate redundant latency and preserve API quota during emergency audits.
+
+---
+
 ## 🏗️ System Architecture & In-Flight Lifecycle
 
 ```
@@ -246,7 +258,23 @@ stop_medicloak_demo.bat
 
 ---
 
-### Option B: Docker Compose Setup
+### Option B: 1-Click Render Cloud Deployment (`render.yaml`)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+MediCloak includes an enterprise-grade **Render Blueprint (`render.yaml`)** to spin up the entire central compliance architecture in one click:
+
+1. **Push your repository** to GitHub.
+2. In your [Render Dashboard](https://dashboard.render.com), click **New + > Blueprint**.
+3. Select this repository. Render will automatically provision:
+   - **`medicloak-backend`**: FastAPI Python Web Service.
+   - **`medicloak-dashboard`**: React 18 / Vite Central CISO SOC Dashboard.
+   - **`medicloak-db`**: Render Managed PostgreSQL Database with SSL.
+4. **Dual-Stream Sync:** Copy your live Render backend URL (e.g. `https://medicloak-backend.onrender.com`) and paste it in `.env` as `RENDER_BACKEND_URL`. Your local hospital edge proxy will automatically mirror all intercepted telemetry to Render Cloud in real time!
+
+---
+
+### Option C: Docker Compose Setup
 
 Run the full stack containerized with PostgreSQL, FastAPI, and Vite:
 

@@ -11,3 +11,5 @@ scratch/
 *.log
 backend/static_scans/*.jpg
 dashboard/public/scans/*.jpg
+backend/static_audio/
+*.pptx

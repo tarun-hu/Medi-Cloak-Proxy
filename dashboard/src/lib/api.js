@@ -1,4 +1,7 @@
-const API_BASE = 'http://localhost:8000/api';
+const envApi = import.meta.env.VITE_API_URL;
+const API_BASE = envApi
+  ? (envApi.startsWith('http') ? envApi.replace(/\/$/, '') : `https://${envApi}`) + '/api'
+  : 'http://localhost:8000/api';
 
 export async function fetchStats() {
   const res = await fetch(`${API_BASE}/stats`);
@@ -124,6 +127,24 @@ export async function purgeAllAuditVault(userRole = 'dpo') {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || 'Failed to execute DPDP Vault Purge');
   }
+  return res.json();
+}
+
+export async function fetchAudioBriefing(eventId, voiceId = 'adam', forceRefresh = false) {
+  const res = await fetch(
+    `${API_BASE}/events/${eventId}/audio-briefing?voice_id=${voiceId}&force_refresh=${forceRefresh}`,
+    { method: 'POST' }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to generate CISO audio briefing');
+  }
+  return res.json();
+}
+
+export async function fetchElevenLabsStatus() {
+  const res = await fetch(`${API_BASE}/elevenlabs/status`);
+  if (!res.ok) throw new Error('Failed to fetch ElevenLabs status');
   return res.json();
 }
 

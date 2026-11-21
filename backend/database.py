@@ -13,30 +13,37 @@ import psycopg2
 from psycopg2 import pool, extras
 from contextlib import contextmanager
 
-DATABASE_URL = os.getenv(
+from urllib.parse import urlparse, parse_qs
+
+def _normalize_db_url(url: str) -> str:
+    """Normalize Render and Cloud Postgres connection strings."""
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    return url
+
+DATABASE_URL = _normalize_db_url(os.getenv(
     "DATABASE_URL",
     "postgresql://postgres:postgres@localhost:5432/medicloak",
-)
+))
 
 # Parse DATABASE_URL into components
 def _parse_dsn(url: str) -> dict:
-    # postgresql://user:pass@host:port/dbname
-    url = url.replace("postgresql://", "")
-    userpass, rest = url.split("@", 1)
-    user, password = userpass.split(":", 1)
-    hostport, dbname = rest.split("/", 1)
-    if ":" in hostport:
-        host, port = hostport.split(":", 1)
-    else:
-        host = hostport
-        port = "5432"
-    return {
-        "user": user,
-        "password": password,
-        "host": host,
-        "port": int(port),
+    url = _normalize_db_url(url)
+    parsed = urlparse(url)
+    dbname = parsed.path.lstrip("/")
+    params = {
+        "user": parsed.username or "postgres",
+        "password": parsed.password or "",
+        "host": parsed.hostname or "localhost",
+        "port": parsed.port or 5432,
         "dbname": dbname,
     }
+    qs = parse_qs(parsed.query)
+    if "sslmode" in qs:
+        params["sslmode"] = qs["sslmode"][0]
+    return params
 
 
 _pool: pool.SimpleConnectionPool | None = None
