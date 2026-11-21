@@ -487,6 +487,23 @@ def print_redaction_box(phi_result, new_payload):
 
 
 # ============================================================
+# PROTOCOL METADATA KEYS TO PRESERVE ROUTING INTEGRITY
+# ============================================================
+
+PROTOCOL_METADATA_KEYS = {
+    "id", "parentmessageid", "parent_message_id", "backendconversationid",
+    "conversationid", "conversation_id", "messageid", "message_id",
+    "fileid", "file_id", "sessionid", "session_id", "oai-session-id",
+    "model", "action", "role", "type", "mimetype", "content_type",
+    "status", "cursor", "hash", "signature", "nonce", "timestamp",
+    "usermessagecount", "author", "dismissedinterventionids", "safety",
+    "messagemetadata", "imageattachments", "interventionids", "flags",
+    "client_id", "clientid", "turnstile", "sentinel", "pow", "proof",
+    "token", "bearer", "authorization", "auth", "session", "device_id"
+}
+
+
+# ============================================================
 # MITMPROXY SOVEREIGN ADDON
 # ============================================================
 
@@ -608,11 +625,15 @@ class MediCloak:
 
         threading.Thread(target=_send, daemon=True).start()
 
-    def _sanitize_json_recursive(self, obj):
+    def _sanitize_json_recursive(self, obj, parent_key=None):
         """
         Recursively traverse and sanitize any JSON payload (dict, list, or nested).
+        Safeguards technical protocol routing keys from being modified.
         Returns (new_obj, modified, all_findings, all_rehydration, all_preserved, original_snippets, redacted_snippets)
         """
+        if parent_key and isinstance(parent_key, str) and parent_key.lower() in PROTOCOL_METADATA_KEYS:
+            return obj, False, [], {}, [], [], []
+
         modified = False
         all_findings = []
         all_rehydration = {}
@@ -623,7 +644,10 @@ class MediCloak:
         if isinstance(obj, dict):
             new_dict = {}
             for k, v in obj.items():
-                res_v, mod_v, f_v, r_v, p_v, s_v, rsnip_v = self._sanitize_json_recursive(v)
+                if isinstance(k, str) and k.lower() in PROTOCOL_METADATA_KEYS:
+                    new_dict[k] = v
+                    continue
+                res_v, mod_v, f_v, r_v, p_v, s_v, rsnip_v = self._sanitize_json_recursive(v, parent_key=k)
                 new_dict[k] = res_v
                 if mod_v:
                     modified = True
@@ -639,7 +663,7 @@ class MediCloak:
         elif isinstance(obj, list):
             new_list = []
             for item in obj:
-                res_i, mod_i, f_i, r_i, p_i, s_i, rsnip_i = self._sanitize_json_recursive(item)
+                res_i, mod_i, f_i, r_i, p_i, s_i, rsnip_i = self._sanitize_json_recursive(item, parent_key=parent_key)
                 new_list.append(res_i)
                 if mod_i:
                     modified = True
@@ -717,15 +741,18 @@ class MediCloak:
                 if "conversationState" in params and params["conversationState"]:
                     try:
                         inner = json.loads(params["conversationState"][0])
-                        san_inner, mod_c, f_c, r_c, p_c, s_c, rsnip_c = self._sanitize_json_recursive(inner)
-                        if mod_c:
-                            params["conversationState"] = [json.dumps(san_inner)]
-                            any_mod = True
-                            all_f.extend(f_c)
-                            all_r.update(r_c)
-                            all_p.update(p_c)
-                            all_s.extend(s_c if isinstance(s_c, list) else [s_c])
-                            all_rsnips.extend(rsnip_c if isinstance(rsnip_c, list) else [rsnip_c])
+                        # Only sanitize human message text, never routing IDs or parentMessageId!
+                        if isinstance(inner, dict) and "messages" in inner and isinstance(inner["messages"], list):
+                            san_msgs, mod_c, f_c, r_c, p_c, s_c, rsnip_c = self._sanitize_json_recursive(inner["messages"], parent_key="messages")
+                            if mod_c:
+                                inner["messages"] = san_msgs
+                                params["conversationState"] = [json.dumps(inner)]
+                                any_mod = True
+                                all_f.extend(f_c)
+                                all_r.update(r_c)
+                                all_p.update(p_c)
+                                all_s.extend(s_c if isinstance(s_c, list) else [s_c])
+                                all_rsnips.extend(rsnip_c if isinstance(rsnip_c, list) else [rsnip_c])
                     except Exception:
                         pass
 
@@ -985,7 +1012,7 @@ class MediCloak:
                 if flow.request.raw_content:
                     flow.request.headers["Content-Length"] = str(len(flow.request.raw_content))
                 flow.request.headers.pop("Content-Encoding", None)
-                flow.request.headers["X-MediCloak"] = "redacted"
+                flow.request.headers["x-medicloak"] = "redacted"
             return
         self._recent_events[cache_key] = now
 
@@ -996,7 +1023,7 @@ class MediCloak:
             if flow.request.raw_content:
                 flow.request.headers["Content-Length"] = str(len(flow.request.raw_content))
             flow.request.headers.pop("Content-Encoding", None)
-            flow.request.headers["X-MediCloak"] = "redacted"
+            flow.request.headers["x-medicloak"] = "redacted"
 
             risk["phi_detected"] = True
             risk["phi_count"] = phi_result["phi_count"]
@@ -1081,7 +1108,7 @@ class MediCloak:
 
     def response(self, flow: mitmproxy.http.HTTPFlow):
         """Pass through upstream responses cleanly."""
-        sg_header = flow.request.headers.get("X-MediCloak", "")
+        sg_header = flow.request.headers.get("x-medicloak", "") or flow.request.headers.get("X-MediCloak", "")
         if sg_header:
             status = flow.response.status_code if flow.response else "no response"
             print(f"  ← {BOLD}Response from {flow.request.pretty_host}: {status}{RESET}")
