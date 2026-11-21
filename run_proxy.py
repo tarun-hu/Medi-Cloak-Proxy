@@ -1,6 +1,12 @@
 import sys
 import os
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+except Exception:
+    pass
+
 # Set UTF-8 encoding on Windows
 if sys.platform == "win32":
     try:

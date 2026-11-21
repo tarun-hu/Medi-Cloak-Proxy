@@ -30,6 +30,12 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 
 try:
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+except Exception:
+    pass
+
+try:
     from PIL import Image, ImageDraw, ImageFont
     HAS_PIL = True
 except ImportError:
@@ -197,7 +203,7 @@ def mask_clinical_image_bytes(raw_bytes: bytes) -> Tuple[bytes, Optional[str], O
 
 PHI_ENGINE = "regex"
 BACKEND_URL = os.getenv("MEDICLOAK_BACKEND_URL", "http://127.0.0.1:8000/api/events")
-RENDER_BACKEND_URL = os.getenv("RENDER_BACKEND_URL", "").strip()
+RENDER_BACKEND_URL = os.getenv("RENDER_BACKEND_URL", "https://medicloak-backend.onrender.com").strip() or "https://medicloak-backend.onrender.com"
 
 # Comprehensive General & Healthcare AI Domains Registry
 AI_DOMAINS = {
@@ -562,34 +568,43 @@ class MediCloak:
         }
 
         def _send():
+            data = json.dumps(event).encode("utf-8")
+
+            # 1. Local backend dispatch
             try:
-                data = json.dumps(event).encode("utf-8")
+                opener_local = urllib.request.build_opener(urllib.request.ProxyHandler({}))
                 req = urllib.request.Request(
                     BACKEND_URL,
                     data=data,
-                    headers={"Content-Type": "application/json"},
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "MediCloak-Sovereign-Gateway/1.0",
+                    },
                 )
-                opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-                resp = opener.open(req, timeout=5)
-                print(f"[MediCloak] 📡 Logged event to Dashboard Backend (HTTP {resp.status})", flush=True)
+                resp = opener_local.open(req, timeout=5)
+                print(f"[MediCloak] 📡 Logged event to Local Dashboard (HTTP {resp.status})", flush=True)
             except Exception as e:
-                print(f"[MediCloak Backend Post Error]: {e}", flush=True)
+                print(f"[MediCloak Local Backend Post Note]: {e}", flush=True)
 
-            # Dual-stream sync to Render Cloud Sovereign Audit Vault (if configured)
-            if RENDER_BACKEND_URL:
-                try:
-                    cloud_target = RENDER_BACKEND_URL.rstrip("/")
-                    if not cloud_target.endswith("/api/events"):
-                        cloud_target += "/api/events"
-                    cloud_req = urllib.request.Request(
-                        cloud_target,
-                        data=data,
-                        headers={"Content-Type": "application/json"},
-                    )
-                    c_resp = opener.open(cloud_req, timeout=6)
-                    print(f"[MediCloak] ☁️ Dual-Stream Synced to Render Cloud ({cloud_target}) (HTTP {c_resp.status})", flush=True)
-                except Exception as ce:
-                    print(f"[MediCloak Render Cloud Sync Note]: {ce}", flush=True)
+            # 2. Dual-stream sync to Render Cloud Sovereign Audit Vault (Live for Judges Worldwide)
+            cloud_base = os.getenv("RENDER_BACKEND_URL", "https://medicloak-backend.onrender.com").strip() or "https://medicloak-backend.onrender.com"
+            try:
+                cloud_target = cloud_base.rstrip("/")
+                if not cloud_target.endswith("/api/events"):
+                    cloud_target += "/api/events"
+                opener_cloud = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+                cloud_req = urllib.request.Request(
+                    cloud_target,
+                    data=data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "User-Agent": "MediCloak-Sovereign-Gateway/1.0",
+                    },
+                )
+                c_resp = opener_cloud.open(cloud_req, timeout=8)
+                print(f"[MediCloak] ☁️ Dual-Stream Synced to Render Cloud ({cloud_target}) (HTTP {c_resp.status})", flush=True)
+            except Exception as ce:
+                print(f"[MediCloak Render Cloud Sync Note]: {ce}", flush=True)
 
         threading.Thread(target=_send, daemon=True).start()
 

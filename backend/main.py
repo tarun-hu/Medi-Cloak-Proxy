@@ -84,16 +84,6 @@ async def lifespan(app: FastAPI):
     try:
         init_db()
         print("[MediCloak] Database initialized successfully")
-        try:
-            with get_cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM events")
-                if cur.fetchone()[0] == 0:
-                    print("[MediCloak] Empty database detected. Seeding 50 clinical demo events...")
-                    events = generate_seed_events(50)
-                    insert_seed_events(cur, events)
-                    print(f"[MediCloak] Successfully seeded {len(events)} demo events.")
-        except Exception as se:
-            print(f"[MediCloak Seeding Note]: {se}")
     except Exception as dbe:
         print(f"[MediCloak DB Init Warning]: Database connection not ready yet ({dbe}). Starting background retry loop...")
         async def _retry_db_init():
@@ -102,12 +92,6 @@ async def lifespan(app: FastAPI):
                 try:
                     init_db()
                     print(f"[MediCloak] Database initialized successfully on attempt {attempt}!")
-                    with get_cursor() as cur:
-                        cur.execute("SELECT COUNT(*) FROM events")
-                        if cur.fetchone()[0] == 0:
-                            events = generate_seed_events(50)
-                            insert_seed_events(cur, events)
-                            print(f"[MediCloak] Seeded {len(events)} events.")
                     break
                 except Exception as re:
                     print(f"[MediCloak DB Retry {attempt}]: {re}")

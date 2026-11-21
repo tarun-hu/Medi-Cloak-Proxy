@@ -172,28 +172,74 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
   const [showTranscript, setShowTranscript] = useState(false);
   const audioRef = useRef(null);
 
-  useEffect(() => {
-    return () => {
+  const stopAudio = () => {
+    try {
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current.removeAttribute('src');
+        audioRef.current.load();
+        audioRef.current.onended = null;
+        audioRef.current.onerror = null;
+        audioRef.current = null;
       }
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
+    } catch (e) {
+      console.warn('Audio cleanup note:', e);
+    }
+    try {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        if (typeof window.speechSynthesis.pause === 'function') {
+          window.speechSynthesis.pause();
+        }
         window.speechSynthesis.cancel();
       }
+    } catch (e) {
+      console.warn('SpeechSynthesis cleanup note:', e);
+    }
+    setIsPlaying(false);
+    setAudioLoading(false);
+  };
+
+  const handleModalClose = () => {
+    stopAudio();
+    if (onClose) onClose();
+  };
+
+  const handleVoiceChange = (voice) => {
+    stopAudio();
+    setAudioVoice(voice);
+  };
+
+  useEffect(() => {
+    return () => {
+      stopAudio();
+    };
+  }, []);
+
+  useEffect(() => {
+    stopAudio();
+  }, [event?.id, event?.event_id]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        handleModalClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
   const handlePlayAudio = async () => {
     if (isPlaying) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-      setIsPlaying(false);
+      stopAudio();
       return;
     }
+
+    stopAudio();
 
     try {
       setAudioLoading(true);
@@ -209,11 +255,8 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
         : 'https://medicloak-backend.onrender.com';
       const fullAudioUrl = rawUrl.startsWith('http') ? rawUrl : `${apiOrigin}${rawUrl}`;
 
-      if (!audioRef.current) {
-        audioRef.current = new Audio();
-      }
-      const audio = audioRef.current;
-      audio.src = fullAudioUrl;
+      const audio = new Audio(fullAudioUrl);
+      audioRef.current = audio;
 
       if (!data.is_live_voice) {
         // Fallback mode: Cyber alert chime plays first, then browser AI speech narrates the full transcript!
@@ -239,7 +282,7 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
 
       audio.onerror = () => {
         console.warn('Audio element error, falling back to browser speech synthesis');
-        if ('speechSynthesis' in window && data?.script) {
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window && data?.script) {
           window.speechSynthesis.cancel();
           const utterance = new SpeechSynthesisUtterance(data.script);
           utterance.rate = 1.02;
@@ -257,13 +300,16 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
       setIsPlaying(true);
     } catch (err) {
       console.error('Audio dispatch error:', err);
-      if ('speechSynthesis' in window) {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         const fallbackScript = `MediCloak Sovereign Gateway Alert. Outbound query to ${event.ai_service || 'AI Service'} was intercepted. Direct patient identifiers were neutralized in 14.2 milliseconds under DPDP Act 2023.`;
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(fallbackScript);
         utterance.onend = () => setIsPlaying(false);
+        utterance.onerror = () => setIsPlaying(false);
         window.speechSynthesis.speak(utterance);
         setIsPlaying(true);
+      } else {
+        setIsPlaying(false);
       }
     } finally {
       setAudioLoading(false);
@@ -278,7 +324,7 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={handleModalClose}>
       <div
         className="glass-panel w-[94vw] max-w-6xl max-h-[90vh] overflow-hidden flex flex-col border border-sg-cyan/30 shadow-2xl shadow-black/80 rounded-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -333,7 +379,7 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleModalClose}
             aria-label="Close dialog"
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors text-gray-400 hover:text-white border border-transparent hover:border-white/10 text-base"
           >
@@ -436,7 +482,7 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
             <div className="flex items-center bg-black/40 rounded-lg p-0.5 border border-white/10 text-[11px] font-mono">
               <button
                 type="button"
-                onClick={() => setAudioVoice('adam')}
+                onClick={() => handleVoiceChange('adam')}
                 className={`px-2 py-0.5 rounded transition ${
                   audioVoice === 'adam'
                     ? 'bg-indigo-600 text-white font-semibold'
@@ -448,7 +494,7 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
               </button>
               <button
                 type="button"
-                onClick={() => setAudioVoice('rachel')}
+                onClick={() => handleVoiceChange('rachel')}
                 className={`px-2 py-0.5 rounded transition ${
                   audioVoice === 'rachel'
                     ? 'bg-purple-600 text-white font-semibold'
@@ -460,7 +506,7 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
               </button>
               <button
                 type="button"
-                onClick={() => setAudioVoice('george')}
+                onClick={() => handleVoiceChange('george')}
                 className={`px-2 py-0.5 rounded transition ${
                   audioVoice === 'george'
                     ? 'bg-emerald-600 text-white font-semibold'
@@ -500,7 +546,7 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
                 </>
               ) : isPlaying ? (
                 <>
-                  <span>⏹️</span> Stop Dispatch
+                  <span className="animate-pulse text-rose-400">⏹️</span> Stop Audio
                 </>
               ) : (
                 <>
