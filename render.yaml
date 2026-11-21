@@ -36,8 +36,6 @@ services:
   - type: web
     name: medicloak-dashboard
     runtime: static
-    region: oregon
-    plan: free
     buildCommand: "cd dashboard && npm install && npm run build"
     staticPublishPath: "./dashboard/dist"
     autoDeploy: true
@@ -50,7 +48,6 @@ services:
         fromService:
           type: web
           name: medicloak-backend
-          envVarKey: RENDER_EXTERNAL_URL
           property: host
 
 databases:
