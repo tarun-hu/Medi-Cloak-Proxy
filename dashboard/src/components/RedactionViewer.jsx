@@ -215,17 +215,35 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
       const audio = audioRef.current;
       audio.src = fullAudioUrl;
 
-      audio.onended = () => {
-        setIsPlaying(false);
-      };
+      if (!data.is_live_voice) {
+        // Fallback mode: Cyber alert chime plays first, then browser AI speech narrates the full transcript!
+        audio.onended = () => {
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window && data?.script) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(data.script);
+            utterance.rate = 1.02;
+            utterance.pitch = audioVoice === 'adam' ? 0.85 : (audioVoice === 'rachel' ? 1.05 : 0.95);
+            utterance.onend = () => setIsPlaying(false);
+            utterance.onerror = () => setIsPlaying(false);
+            window.speechSynthesis.speak(utterance);
+          } else {
+            setIsPlaying(false);
+          }
+        };
+      } else {
+        // Live ElevenLabs high-fidelity neural MP3 voice
+        audio.onended = () => {
+          setIsPlaying(false);
+        };
+      }
 
       audio.onerror = () => {
         console.warn('Audio element error, falling back to browser speech synthesis');
         if ('speechSynthesis' in window && data?.script) {
           window.speechSynthesis.cancel();
           const utterance = new SpeechSynthesisUtterance(data.script);
-          utterance.rate = 1.05;
-          utterance.pitch = audioVoice === 'adam' ? 0.85 : (audioVoice === 'rachel' ? 1.1 : 0.95);
+          utterance.rate = 1.02;
+          utterance.pitch = audioVoice === 'adam' ? 0.85 : (audioVoice === 'rachel' ? 1.05 : 0.95);
           utterance.onend = () => setIsPlaying(false);
           utterance.onerror = () => setIsPlaying(false);
           window.speechSynthesis.speak(utterance);
@@ -501,6 +519,19 @@ export default function RedactionViewer({ event, currentRole = 'dpo', onClose })
             </button>
           </div>
         </div>
+
+        {/* API Key Hint Banner if in Fallback Mode */}
+        {briefingData?.note && !briefingData?.is_live_voice && (
+          <div className="px-5 py-2 bg-amber-950/40 border-b border-amber-500/30 text-xs font-mono text-amber-300 flex items-center justify-between flex-wrap gap-2">
+            <span className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{briefingData.note}</span>
+            </span>
+            <span className="text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
+              Expected format: sk_...
+            </span>
+          </div>
+        )}
 
         {/* Spoken Transcript Drawer */}
         {showTranscript && (

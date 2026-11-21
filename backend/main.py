@@ -899,11 +899,16 @@ async def purge_all_audit_vault(x_user_role: str = Header(default="dpo")):
 @app.get("/api/elevenlabs/status")
 def get_elevenlabs_status():
     """Returns the operational status and curated voice models for ElevenLabs dispatch."""
+    api_key = elevenlabs_service.get_api_key()
+    key_is_id = bool(api_key and not api_key.startswith("sk_"))
     return {
         "configured": elevenlabs_service.is_configured(),
-        "api_key_set": bool(elevenlabs_service.get_api_key()),
+        "api_key_set": bool(api_key),
+        "key_format_valid": bool(api_key and api_key.startswith("sk_")),
+        "key_is_id": key_is_id,
         "default_voice": os.getenv("ELEVENLABS_DEFAULT_VOICE_ID", "pNInz6obpgDQGcFmaJgB"),
         "curated_voices": elevenlabs_service.CURATED_VOICES,
+        "hint": "API keys start with 'sk_'. You may have copied the Key ID." if key_is_id else ""
     }
 
 

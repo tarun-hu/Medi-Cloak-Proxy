@@ -13,6 +13,7 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
+from dotenv import load_dotenv
 
 # Curated ElevenLabs voices for Incident Command & Healthcare Compliance
 CURATED_VOICES = {
@@ -44,14 +45,27 @@ AUDIO_STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_api_key() -> str:
-    """Retrieve ElevenLabs API key from environment."""
-    return os.getenv("ELEVENLABS_API_KEY", "").strip()
+    """Retrieve ElevenLabs API key dynamically from environment or .env file."""
+    # Check current process environment
+    key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+    if not key or not key.startswith("sk_"):
+        # Dynamically reload from backend/.env or root .env so user edits take effect immediately
+        backend_env = Path(__file__).resolve().parent / ".env"
+        if backend_env.exists():
+            load_dotenv(backend_env, override=True)
+            key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+        if not key or not key.startswith("sk_"):
+            root_env = Path(__file__).resolve().parent.parent / ".env"
+            if root_env.exists():
+                load_dotenv(root_env, override=True)
+                key = os.getenv("ELEVENLABS_API_KEY", "").strip()
+    return key
 
 
 def is_configured() -> bool:
-    """Check if a valid ElevenLabs API key is configured."""
+    """Check if a valid ElevenLabs API key is configured (must start with sk_)."""
     key = get_api_key()
-    return bool(key and key != "your_elevenlabs_api_key" and not key.startswith("sk_test_placeholder"))
+    return bool(key and key.startswith("sk_") and len(key) >= 20)
 
 
 def get_voice_info(voice_key: str) -> dict:
@@ -256,6 +270,14 @@ def synthesize_briefing_audio(
     if not wav_path.exists() or wav_path.stat().st_size == 0:
         _generate_alert_tone_wav(wav_path)
 
+    key_is_id = bool(api_key and not api_key.startswith("sk_"))
+    note = (
+        "Notice: You copied the ElevenLabs Key ID instead of the Secret API Key. "
+        "ElevenLabs API keys start with 'sk_'. Please create or copy a key starting with 'sk_'."
+        if key_is_id else
+        "Paste ELEVENLABS_API_KEY (starts with sk_) in .env to activate neural voice generation."
+    )
+
     return {
         "status": "success",
         "audio_url": f"/static/audio/{wav_filename}",
@@ -266,5 +288,5 @@ def synthesize_briefing_audio(
         "provider": "medicloak_cyber_synth",
         "is_live_voice": False,
         "fallback_speech_text": script,
-        "note": "Paste ELEVENLABS_API_KEY in .env to activate neural voice generation.",
+        "note": note,
     }
