@@ -35,10 +35,14 @@ export default function App() {
   const [currentRole, setCurrentRole] = useState('dpo'); // 'doctor' | 'cmo' | 'dpo'
   const [showDemoSandbox, setShowDemoSandbox] = useState(false);
   const [showVisionShield, setShowVisionShield] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const newEventTimeouts = useRef(new Map());
 
-  // Load initial data
+  // Load initial data with automatic retry on cold starts
   useEffect(() => {
+    let timer = null;
+    let isMounted = true;
+
     async function loadData() {
       try {
         const [statsData, eventsData, callData, callsList] = await Promise.all([
@@ -47,8 +51,10 @@ export default function App() {
           fetchCallStats().catch(() => ({ total_calls: 0, completed_calls: 0, failed_calls: 0 })),
           fetchCalls({ limit: 200 }).catch(() => []),
         ]);
+        if (!isMounted) return;
         setStats(statsData);
         setCallStats(callData);
+        setLoadError(false);
 
         // Merge call data into events
         const callMap = {};
@@ -61,10 +67,19 @@ export default function App() {
         }));
         setEvents(enrichedEvents);
       } catch (err) {
-        console.error('Failed to load initial data:', err);
+        if (!isMounted) return;
+        console.warn('Initial data load attempt failed, auto-retrying in 5s...', err);
+        setLoadError(true);
+        timer = setTimeout(loadData, 5000);
       }
     }
+
     loadData();
+
+    return () => {
+      isMounted = false;
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   // Handle WebSocket messages
@@ -195,6 +210,18 @@ export default function App() {
         onOpenDemoSandbox={() => setShowDemoSandbox(true)}
         onOpenVisionShield={() => setShowVisionShield(true)}
       />
+
+      {loadError && !connected && (
+        <div className="mb-4 px-4 py-2.5 bg-indigo-950/40 border border-indigo-500/30 rounded-xl flex items-center justify-between text-xs font-mono text-indigo-300 flex-wrap gap-2">
+          <span className="flex items-center gap-2">
+            <span className="animate-spin text-sm">⏳</span>
+            <span>Connecting to MediCloak Cloud Backend... (Render Free Tier spins up in ~30s on first load). Retrying automatically...</span>
+          </span>
+          <span className="text-[10px] bg-indigo-500/20 text-indigo-200 px-2 py-0.5 rounded border border-indigo-500/30">
+            Auto-Polling Active
+          </span>
+        </div>
+      )}
 
       {/* DPDP Act 2023 Sovereign Hub */}
       <DPDPHub events={events} currentRole={currentRole} />

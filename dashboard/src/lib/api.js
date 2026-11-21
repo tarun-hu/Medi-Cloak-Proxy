@@ -1,10 +1,26 @@
-const envApi = import.meta.env.VITE_API_URL;
-const API_BASE = envApi
-  ? (envApi.startsWith('http') ? envApi.replace(/\/$/, '') : `https://${envApi}`) + '/api'
-  : 'http://localhost:8000/api';
+export function getApiBase() {
+  // 1. User manual override stored in localStorage
+  if (typeof window !== 'undefined' && localStorage.getItem('medicloak_api_url')) {
+    const custom = localStorage.getItem('medicloak_api_url').replace(/\/$/, '');
+    return custom.endsWith('/api') ? custom : `${custom}/api`;
+  }
+  // 2. Build-time injected VITE_API_URL
+  const envApi = import.meta.env.VITE_API_URL;
+  if (envApi && typeof envApi === 'string' && envApi !== 'undefined' && !envApi.includes('localhost')) {
+    const clean = envApi.startsWith('http') ? envApi.replace(/\/$/, '') : `https://${envApi.replace(/\/$/, '')}`;
+    return clean.endsWith('/api') ? clean : `${clean}/api`;
+  }
+  // 3. Dynamic cloud derivation on Render (*.onrender.com)
+  if (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')) {
+    const backendHost = window.location.hostname.replace('medicloak-dashboard', 'medicloak-backend');
+    return `https://${backendHost}/api`;
+  }
+  // 4. Default to local development backend
+  return 'http://localhost:8000/api';
+}
 
 export async function fetchStats() {
-  const res = await fetch(`${API_BASE}/stats`);
+  const res = await fetch(`${getApiBase()}/stats`);
   if (!res.ok) throw new Error('Failed to fetch stats');
   return res.json();
 }
@@ -17,19 +33,19 @@ export async function fetchEvents(params = {}) {
   if (params.service) query.set('service', params.service);
   if (params.status) query.set('status', params.status);
 
-  const res = await fetch(`${API_BASE}/events?${query}`);
+  const res = await fetch(`${getApiBase()}/events?${query}`);
   if (!res.ok) throw new Error('Failed to fetch events');
   return res.json();
 }
 
 export async function fetchEvent(eventId) {
-  const res = await fetch(`${API_BASE}/events/${eventId}`);
+  const res = await fetch(`${getApiBase()}/events/${eventId}`);
   if (!res.ok) throw new Error('Failed to fetch event');
   return res.json();
 }
 
 export async function updateEventStatus(eventId, status) {
-  const res = await fetch(`${API_BASE}/events/${eventId}/status`, {
+  const res = await fetch(`${getApiBase()}/events/${eventId}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
@@ -39,7 +55,7 @@ export async function updateEventStatus(eventId, status) {
 }
 
 export async function deleteEvent(eventId, userRole = 'dpo') {
-  const res = await fetch(`${API_BASE}/events/${eventId}`, {
+  const res = await fetch(`${getApiBase()}/events/${eventId}`, {
     method: 'DELETE',
     headers: {
       'x-user-role': userRole,
@@ -53,7 +69,7 @@ export async function deleteEvent(eventId, userRole = 'dpo') {
 }
 
 export async function requestErasure(patientIdentifier, reason = 'DPDP Section 12 Right to Erasure', eventId = null, userRole = 'dpo') {
-  const res = await fetch(`${API_BASE}/dpdp/erasure-request`, {
+  const res = await fetch(`${getApiBase()}/dpdp/erasure-request`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -73,7 +89,7 @@ export async function requestErasure(patientIdentifier, reason = 'DPDP Section 1
 }
 
 export async function interceptVision(payload) {
-  const res = await fetch(`${API_BASE}/vision/intercept`, {
+  const res = await fetch(`${getApiBase()}/vision/intercept`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -86,7 +102,7 @@ export async function interceptVision(payload) {
 }
 
 export async function seedDatabase() {
-  const res = await fetch(`${API_BASE}/seed`, {
+  const res = await fetch(`${getApiBase()}/seed`, {
     method: 'POST',
     headers: { 'x-user-role': 'admin' },
   });
@@ -99,25 +115,25 @@ export async function fetchCalls(params = {}) {
   if (params.limit) query.set('limit', params.limit);
   if (params.event_id) query.set('event_id', params.event_id);
 
-  const res = await fetch(`${API_BASE}/calls?${query}`);
+  const res = await fetch(`${getApiBase()}/calls?${query}`);
   if (!res.ok) throw new Error('Failed to fetch calls');
   return res.json();
 }
 
 export async function fetchCallStats() {
-  const res = await fetch(`${API_BASE}/calls/stats`);
+  const res = await fetch(`${getApiBase()}/calls/stats`);
   if (!res.ok) throw new Error('Failed to fetch call stats');
   return res.json();
 }
 
 export async function triggerTestCall() {
-  const res = await fetch(`${API_BASE}/calls/test`, { method: 'POST' });
+  const res = await fetch(`${getApiBase()}/calls/test`, { method: 'POST' });
   if (!res.ok) throw new Error('Failed to trigger test call');
   return res.json();
 }
 
 export async function purgeAllAuditVault(userRole = 'dpo') {
-  const res = await fetch(`${API_BASE}/audit/purge-all`, {
+  const res = await fetch(`${getApiBase()}/audit/purge-all`, {
     method: 'POST',
     headers: {
       'x-user-role': userRole || 'dpo',
@@ -132,7 +148,7 @@ export async function purgeAllAuditVault(userRole = 'dpo') {
 
 export async function fetchAudioBriefing(eventId, voiceId = 'adam', forceRefresh = false) {
   const res = await fetch(
-    `${API_BASE}/events/${eventId}/audio-briefing?voice_id=${voiceId}&force_refresh=${forceRefresh}`,
+    `${getApiBase()}/events/${eventId}/audio-briefing?voice_id=${voiceId}&force_refresh=${forceRefresh}`,
     { method: 'POST' }
   );
   if (!res.ok) {
@@ -143,7 +159,7 @@ export async function fetchAudioBriefing(eventId, voiceId = 'adam', forceRefresh
 }
 
 export async function fetchElevenLabsStatus() {
-  const res = await fetch(`${API_BASE}/elevenlabs/status`);
+  const res = await fetch(`${getApiBase()}/elevenlabs/status`);
   if (!res.ok) throw new Error('Failed to fetch ElevenLabs status');
   return res.json();
 }
